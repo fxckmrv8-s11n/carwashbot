@@ -101,6 +101,7 @@ class CarIn(BaseModel):
     custom_services: list[dict] = []       # [{"name","price","percent"}]
     car: str = ""
     payment: str
+    comment: str = ""
 
 
 class LoyaltyIn(BaseModel):
@@ -247,6 +248,8 @@ def api_add_car(body: CarIn):
         "price": sum(v["price"] for v in breakdown.values()),
         "car": body.car,
         "payment": body.payment,
+        "comment": body.comment,
+        "time": datetime.now().strftime("%H:%M"),
     }
     session["cars"].append(car)
     save_sessions()
