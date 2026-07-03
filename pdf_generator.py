@@ -8,32 +8,38 @@ import os, sys
 
 def _register_fonts():
     """Регистрируем шрифты с поддержкой кириллицы для Windows/Linux/Mac."""
-    # Пути к шрифтам на разных системах
+    # Шрифты, идущие вместе с проектом (приоритет №1 — не зависят от ОС сервера)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    bundled_dir = os.path.join(base_dir, "fonts")
     candidates = {
-        "Times": [],
-        "Times-Bold": [],
+        "Times": [
+            os.path.join(bundled_dir, "DejaVuSerif.ttf"),
+        ],
+        "Times-Bold": [
+            os.path.join(bundled_dir, "DejaVuSerif-Bold.ttf"),
+        ],
     }
 
     if sys.platform == "win32":
         winfonts = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "Fonts")
-        candidates["Times"]      = [
+        candidates["Times"]      += [
             os.path.join(winfonts, "times.ttf"),
             os.path.join(winfonts, "arial.ttf"),
         ]
-        candidates["Times-Bold"] = [
+        candidates["Times-Bold"] += [
             os.path.join(winfonts, "timesbd.ttf"),
             os.path.join(winfonts, "arialbd.ttf"),
         ]
     elif sys.platform == "darwin":  # macOS
-        candidates["Times"]      = ["/Library/Fonts/Times New Roman.ttf"]
-        candidates["Times-Bold"] = ["/Library/Fonts/Times New Roman Bold.ttf"]
+        candidates["Times"]      += ["/Library/Fonts/Times New Roman.ttf"]
+        candidates["Times-Bold"] += ["/Library/Fonts/Times New Roman Bold.ttf"]
     else:  # Linux
-        candidates["Times"]      = [
+        candidates["Times"]      += [
             "/usr/share/fonts/truetype/freefont/FreeSerif.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
         ]
-        candidates["Times-Bold"] = [
+        candidates["Times-Bold"] += [
             "/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
