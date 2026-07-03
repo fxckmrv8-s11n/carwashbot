@@ -22,7 +22,7 @@
   body{
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
     background:var(--bg); color:var(--text);
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
     -webkit-font-smoothing:antialiased;
   }
   .container{padding:12px 16px 8px}
@@ -236,7 +236,7 @@ async function renderAdd(){
       <p class="stat-label">Итого</p>
       <p class="stat-value accent" id="f-total">0 ₽</p>
     </div>
-    <button class="btn" onclick="submitCar()">Сохранить машину</button>
+    <button class="btn" style="margin-bottom:24px" onclick="submitCar()">Сохранить машину</button>
   `;
   renderServiceChips();
   document.getElementById("f-body").addEventListener("change", renderServiceChips);
