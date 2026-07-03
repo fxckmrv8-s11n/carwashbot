@@ -18,7 +18,8 @@ from contextlib import contextmanager
 
 from config import SALARY_ADMIN, BRANCHES, OWNER_ID
 
-DATA_DIR = os.path.expanduser("~")
+DATA_DIR = os.getenv("DATA_DIR", os.path.expanduser("~"))
+os.makedirs(DATA_DIR, exist_ok=True)
 
 SESSIONS_FILE = os.path.join(DATA_DIR, "carwash_sessions.json")
 ARCHIVE_FILE  = os.path.join(DATA_DIR, "carwash_archive.json")
