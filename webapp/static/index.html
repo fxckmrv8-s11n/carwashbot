@@ -3,126 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>ClaudeFormula 2.0</title>
+<title>CarWash</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
   :root{
-    --surface-0: var(--tg-theme-bg-color, #ffffff);
-    --surface-1: var(--tg-theme-secondary-bg-color, #f2f2f2);
+    --bg: var(--tg-theme-bg-color, #F2F2F7);
+    --card: var(--tg-theme-secondary-bg-color, #FFFFFF);
     --text: var(--tg-theme-text-color, #000000);
-    --text-secondary: #6b6b6b;
-    --text-muted: var(--tg-theme-hint-color, #9a9a9a);
-    --border: rgba(0,0,0,0.12);
-    --red: #e53935;
+    --hint: var(--tg-theme-hint-color, #8E8E93);
+    --accent: var(--tg-theme-button-color, #007AFF);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --sep: rgba(60,60,67,0.15);
+    --red: #FF3B30;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --surface-0:#000000; --surface-1:#161616; --text:#ffffff;
-      --text-secondary:#a0a0a0; --text-muted:#7a7a7a; --border:rgba(255,255,255,0.14);
-    }
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  @media (prefers-color-scheme: dark){ :root{ --sep: rgba(84,84,88,0.6); } }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent}
   html,body{margin:0;height:100%}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
-    background:var(--surface-0); color:var(--text);
-    padding-bottom: calc(90px + env(safe-area-inset-bottom));
+    background:var(--bg); color:var(--text);
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
     -webkit-font-smoothing:antialiased;
   }
-  .container{padding:16px 16px 8px}
-  .page-title{font-size:26px;font-weight:600;letter-spacing:-0.02em;margin:6px 0 14px}
-  .section-label{font-size:13px;color:var(--text-secondary);margin:18px 2px 8px;font-weight:500}
+  .container{padding:12px 16px 8px}
+  .page-title{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin:8px 0 14px}
+  .section-label{font-size:13px;color:var(--hint);text-transform:uppercase;letter-spacing:0.02em;margin:18px 4px 6px;font-weight:590}
 
-  .topbar{background:#000;padding:20px 18px 16px;display:flex;align-items:center;gap:10px}
-  .topbar span{font-size:15px;font-weight:500;color:#fff}
-
-  .card{border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+  .card{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
   .card + .card{margin-top:12px}
-  .card-pad{padding:14px}
+  .card-pad{padding:14px 16px}
 
   .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .stat-card{background:var(--surface-1);border-radius:14px;padding:1rem}
-  .stat-label{font-size:12px;color:var(--text-secondary);margin:0 0 4px}
-  .stat-value{font-size:20px;font-weight:500;margin:0;letter-spacing:-0.01em}
+  .stat-card{background:var(--card);border-radius:16px;padding:14px 16px}
+  .stat-label{font-size:13px;color:var(--hint);margin:0;font-weight:500}
+  .stat-value{font-size:22px;font-weight:700;margin:4px 0 0;letter-spacing:-0.01em}
+  .stat-value.accent{color:var(--accent)}
 
   .btn{
-    width:100%; background:#000; color:#fff; border:0.5px solid #000;
-    border-radius:12px; height:48px; font-size:16px; font-weight:500;
-    margin-top:8px; transition:opacity .15s, transform .1s;
+    width:100%; background:var(--accent); color:var(--accent-text);
+    border:none; border-radius:14px; height:50px; font-size:17px; font-weight:600;
+    margin-top:8px; letter-spacing:-0.01em;
+    transition: opacity .15s, transform .1s;
   }
-  @media (prefers-color-scheme: dark){ .btn{ background:#fff; color:#000; border-color:#fff; } }
-  .btn:active{opacity:0.7; transform:scale(0.98)}
-  .btn.secondary{background:transparent; color:var(--text); border:0.5px solid var(--border)}
-  .btn.small{height:38px; font-size:14px; width:auto; padding:0 16px}
+  .btn:active{opacity:0.75; transform:scale(0.98)}
+  .btn.secondary{background:var(--card); color:var(--accent)}
+  .btn.small{height:36px; font-size:14px; width:auto; padding:0 16px; border-radius:12px}
 
   select,input{
-    width:100%; padding:12px 14px; border-radius:12px; border:0.5px solid var(--border);
-    background:var(--surface-1); color:var(--text); font-size:16px; margin-bottom:10px;
+    width:100%; padding:12px 14px; border-radius:12px; border:none;
+    background: var(--bg); color:var(--text); font-size:16px; margin-bottom:10px;
     -webkit-appearance:none; appearance:none;
   }
-  select:focus,input:focus{outline:1.5px solid var(--text); outline-offset:-1.5px}
-  label{font-size:12px;color:var(--text-muted);display:block;margin:0 0 6px}
+  select:focus,input:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  label{font-size:13px;color:var(--hint);display:block;margin:4px 0 6px;font-weight:500}
 
   .chip{
     display:inline-flex; align-items:center; padding:9px 14px; border-radius:20px;
-    border:0.5px solid var(--border); margin:0 6px 6px 0; font-size:14px; font-weight:500;
-    cursor:pointer; user-select:none; transition:background .15s, color .15s;
+    background:var(--bg); margin:0 6px 6px 0; font-size:14px; font-weight:500;
+    cursor:pointer; user-select:none; transition: background .15s, color .15s;
   }
-  .chip.active{background:#000; color:#fff; border-color:#000}
-  @media (prefers-color-scheme: dark){ .chip.active{ background:#fff; color:#000; border-color:#fff; } }
+  .chip.active{background:var(--accent); color:var(--accent-text)}
 
   .row{
     display:flex; justify-content:space-between; align-items:center;
-    padding:12px; border-bottom:0.5px solid var(--border);
+    padding:12px 16px; border-bottom:0.5px solid var(--sep);
   }
   .row:last-child{border-bottom:none}
-  .row .name{font-size:14px;font-weight:500;margin:0}
-  .row .sub{font-size:12px;color:var(--text-secondary);margin:2px 0 0}
-  .row .price{font-size:14px;font-weight:500}
+  .row .name{font-size:16px;font-weight:500;margin:0}
+  .row .sub{font-size:13px;color:var(--hint);margin:2px 0 0}
+  .row .price{font-size:16px;font-weight:600}
   .row .meta{text-align:right}
 
   .del-btn{
-    color:var(--red); font-size:12px; font-weight:500; margin-top:3px;
+    color:var(--red); font-size:13px; font-weight:500; margin-top:3px;
     display:inline-block; padding:2px 0;
   }
 
-  .empty{color:var(--text-muted);font-size:14px;text-align:center;padding:32px 16px}
+  .empty{color:var(--hint);font-size:15px;text-align:center;padding:32px 16px}
 
   .tabbar{
-    position:fixed; bottom:0; left:0; right:0; display:flex;
-    background:var(--surface-0);
-    border-top:0.5px solid var(--border);
-    padding:10px 0 6px;
-    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; background: color-mix(in srgb, var(--card) 85%, transparent);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top:0.5px solid var(--sep);
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .tab{flex:1;text-align:center;color:var(--text-muted)}
-  .tab.active{color:var(--text)}
-  .tab .ic{font-size:20px;display:block}
-  .tab .lbl{font-size:10px;margin:2px 0 0;font-weight:500}
+  .tab{flex:1;text-align:center;padding:8px 0 6px;font-size:10px;color:var(--hint);font-weight:500}
+  .tab.active{color:var(--accent)}
+  .tab .ic{font-size:22px;display:block;margin-bottom:2px;line-height:1}
   .hidden{display:none}
 
   .branch-pick{
-    width:100%; text-align:left; background:transparent; border:0.5px solid var(--border);
-    border-radius:14px; padding:16px; font-size:16px; font-weight:500;
+    width:100%; text-align:left; background:var(--card); border:none;
+    border-radius:14px; padding:16px; font-size:17px; font-weight:500;
     margin-bottom:10px; color:var(--text); display:flex; justify-content:space-between; align-items:center;
   }
-  .branch-pick:active{opacity:0.6}
-  .chev{color:var(--text-muted); font-size:18px}
+  .branch-pick:active{opacity:0.7}
+  .chev{color:var(--hint); font-size:18px}
 
   .skeleton{
-    background:var(--surface-1); border-radius:14px; height:60px; margin-bottom:10px;
+    background:var(--card); border-radius:16px; height:64px; margin-bottom:10px;
     animation:pulse 1.2s ease-in-out infinite;
   }
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
 </style>
 </head>
 <body>
-
-<div class="topbar">
-  <div style="width:26px;height:26px;border-radius:7px;background:#fff;display:flex;align-items:center;justify-content:center"><i class="ti ti-car" style="font-size:15px;color:#000"></i></div>
-  <span>ClaudeFormula 2.0</span>
-</div>
 
 <div class="container">
   <div id="view-shift"></div>
@@ -132,16 +118,16 @@
 </div>
 
 <div class="tabbar">
-  <div class="tab active" data-tab="shift"><i class="ti ti-home ic"></i><p class="lbl">Смена</p></div>
-  <div class="tab" data-tab="add"><i class="ti ti-plus ic"></i><p class="lbl">Добавить</p></div>
-  <div class="tab" data-tab="reports"><i class="ti ti-chart-bar ic"></i><p class="lbl">Отчёты</p></div>
-  <div class="tab" data-tab="workers"><i class="ti ti-users ic"></i><p class="lbl">Мойщики</p></div>
+  <div class="tab active" data-tab="shift"><span class="ic">🏠</span>Смена</div>
+  <div class="tab" data-tab="add"><span class="ic">➕</span>Добавить</div>
+  <div class="tab" data-tab="reports"><span class="ic">📊</span>Отчёты</div>
+  <div class="tab" data-tab="workers"><span class="ic">👥</span>Мойщики</div>
 </div>
 
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
-try{ tg.setHeaderColor("#000000"); }catch(e){}
+try{ tg.setHeaderColor("secondary_bg_color"); }catch(e){}
 
 const API = "";
 const initData = tg.initData || "";
@@ -178,7 +164,7 @@ async function ensureBranch() {
   CFG = CFG || await api("/api/config");
   const el = document.getElementById("view-shift");
   el.innerHTML = `<p class="page-title">Выбери филиал</p>` + CFG.branches.map(b =>
-    `<button class="branch-pick" onclick="pickBranch('${b}')">${b}<i class="ti ti-chevron-right chev"></i></button>`).join("");
+    `<button class="branch-pick" onclick="pickBranch('${b}')">${b}<span class="chev">›</span></button>`).join("");
 }
 window.pickBranch = (b) => { BRANCH = b; haptic("medium"); switchTab("shift"); };
 
@@ -191,12 +177,12 @@ async function renderShift(){
     <p class="page-title">${BRANCH}</p>
     <p class="section-label">Касса · ${session.date || ""}</p>
     <div class="stat-grid">
-      <div class="stat-card"><p class="stat-label">В кассе</p><p class="stat-value">${fmt(summary.total)}</p></div>
+      <div class="stat-card"><p class="stat-label">В кассе</p><p class="stat-value accent">${fmt(summary.total)}</p></div>
       <div class="stat-card"><p class="stat-label">Общая выручка</p><p class="stat-value">${fmt(summary.grand_total)}</p></div>
       <div class="stat-card"><p class="stat-label">Наличные</p><p class="stat-value">${fmt(summary.cash)}</p></div>
       <div class="stat-card"><p class="stat-label">Карта</p><p class="stat-value">${fmt(summary.visa + summary.beznal)}</p></div>
     </div>
-    <button class="btn" onclick="switchTab('add')"><i class="ti ti-plus" style="vertical-align:-2px;margin-right:6px"></i>Добавить машину</button>
+    <button class="btn" onclick="switchTab('add')">Добавить машину</button>
     <p class="section-label">Машины · ${session.cars.length}</p>
     <div class="card">
       ${session.cars.length ? session.cars.slice().reverse().map(c => `
@@ -235,20 +221,22 @@ async function renderAdd(){
       <select id="f-emp">${workers.map(w => `<option>${w}</option>`).join("")}</select>
       <label>Тип кузова</label>
       <select id="f-body">${CFG.body_types.map(b => `<option value="${b.key}">${b.name}</option>`).join("")}</select>
-      <label>Марка машины</label>
-      <input id="f-car" placeholder="Camry">
     </div>
     <p class="section-label">Услуги</p>
     <div id="f-services"></div>
-    <button class="btn secondary small" onclick="addCustomService()" style="margin-top:10px"><i class="ti ti-plus" style="vertical-align:-2px;margin-right:4px"></i>Другое (своя услуга)</button>
+    <button class="btn secondary small" onclick="addCustomService()">➕ Другое (своя услуга)</button>
     <div id="f-custom"></div>
-    <p class="section-label">Оплата</p>
-    <select id="f-payment">${CFG.payment_types.map(p => `<option>${p}</option>`).join("")}</select>
+    <div class="card card-pad" style="margin-top:12px">
+      <label>Марка машины</label>
+      <input id="f-car" placeholder="Camry">
+      <label>Оплата</label>
+      <select id="f-payment">${CFG.payment_types.map(p => `<option>${p}</option>`).join("")}</select>
+    </div>
     <div class="stat-card" style="margin-top:12px">
       <p class="stat-label">Итого</p>
-      <p class="stat-value" id="f-total" style="font-size:24px">0 ₽</p>
+      <p class="stat-value accent" id="f-total">0 ₽</p>
     </div>
-    <button class="btn" style="margin-bottom:24px" onclick="submitCar()">Сохранить</button>
+    <button class="btn" style="margin-bottom:24px" onclick="submitCar()">Сохранить машину</button>
   `;
   renderServiceChips();
   document.getElementById("f-body").addEventListener("change", renderServiceChips);
@@ -281,7 +269,7 @@ window.addCustomService = () => {
 function renderCustomList(){
   const wrap = document.getElementById("f-custom");
   if (!customServices.length) { wrap.innerHTML = ""; updateTotal(); return; }
-  wrap.innerHTML = `<div class="card" style="margin-top:10px">` + customServices.map((c,i) => `
+  wrap.innerHTML = `<div class="card">` + customServices.map((c,i) => `
     <div class="row"><div><p class="name">${c.name}</p><p class="sub">${c.percent}% мойщику</p></div>
     <div class="meta"><p class="price">${c.price}₽</p><span class="del-btn" onclick="removeCustom(${i})">Убрать</span></div></div>
   `).join("") + `</div>`;
