@@ -152,6 +152,13 @@ const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
 try{ tg.setHeaderColor("#000000"); tg.setBackgroundColor("#000000"); }catch(e){}
 
+window.addEventListener("error", (e) => {
+  const el = document.getElementById("view-home");
+  if (el && !el.innerHTML.trim()) {
+    el.innerHTML = `<div class="content"><p class="empty">Ошибка загрузки: ${e.message || "неизвестная"}<br><button class="btn secondary" onclick="location.reload()">Обновить</button></p></div>`;
+  }
+});
+
 const API = "";
 const initData = tg.initData || "";
 const headers = { "Content-Type": "application/json", "X-Init-Data": initData };
@@ -190,8 +197,14 @@ async function ensureMe(){ ME = ME || await api(`/api/me?branch=${encodeURICompo
 
 async function ensureBranch() {
   if (BRANCH) return;
-  CFG = CFG || await api("/api/config");
   const el = document.getElementById("view-home");
+  el.innerHTML = `<div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div></div>${skeleton(3)}`;
+  try {
+    CFG = CFG || await api("/api/config");
+  } catch (e) {
+    el.innerHTML = `<div class="topbar"><div><h1>ClaudeFormula 2.0</h1></div></div><div class="content"><p class="empty">Не удалось связаться с сервером.<br>Проверь подключение и перезапусти приложение.</p><button class="btn secondary" onclick="location.reload()">Обновить</button></div>`;
+    return;
+  }
   el.innerHTML = `<div class="content"><p class="page-title">Выбери филиал</p>` + CFG.branches.map(b =>
     `<button class="branch-pick" onclick="pickBranch('${b}')">${b}<i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></button>`).join("") + `</div>`;
 }
@@ -397,4 +410,177 @@ window.openAllReport = async () => {
 async function renderDayReport(){
   const el = document.getElementById("view-day-report");
   el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('reports')"><i class="ti ti-chevron-left"></i></div><span>Общий отчёт (сегодня)</span></div>${skeleton(2)}`;
-  const r = await api(`/api/reports/today?branch=$
+  const r = await api(`/api/reports/today?branch=${encodeURIComponent(BRANCH)}`);
+  const s = r.summary;
+  const parts = [
+    { name: "Наличные", val: s.cash, color: "#33D17A" },
+    { name: "Безнал", val: s.beznal, color: "#0A84FF" },
+    { name: "Карта", val: s.visa, color: "#FF9F0A" },
+  ].filter(p => p.val > 0);
+  const total = parts.reduce((a,p)=>a+p.val,0) || 1;
+  let acc = 0;
+  const gradient = parts.map(p => { const from=acc/total*360; acc+=p.val; const to=acc/total*360; return `${p.color} ${from}deg ${to}deg`; }).join(", ") || "#333 0deg 360deg";
+
+  el.innerHTML = `
+    <div class="back-header"><div class="back" onclick="switchTab('reports')"><i class="ti ti-chevron-left"></i></div><span>Общий отчёт (сегодня)</span></div>
+    <div class="content">
+      <div class="hero-card"><p class="lbl">Итого за сегодня</p><p class="amount">${fmt(s.grand_total)}</p><p class="sub">${r.session.cars.length} машин</p></div>
+      <div class="card" style="margin-top:14px">
+        <div class="donut-wrap">
+          <div class="donut" style="background:conic-gradient(${gradient})"><div class="center"><b>${fmt(s.grand_total)}</b><span>Всего</span></div></div>
+          <div class="legend">${parts.map(p => `<div class="item"><span class="dot" style="background:${p.color}"></span>${p.name}<b>${fmt(p.val)}</b></div>`).join("") || `<p class="empty">Нет данных</p>`}</div>
+        </div>
+      </div>
+      <p class="section-label">По услугам</p>
+      <div class="card">${r.top_services.length ? r.top_services.map(([name,count]) => `<div class="row"><span class="name">${name}</span><p class="sub" style="margin:0">${count}</p></div>`).join("") : `<p class="empty">Нет данных</p>`}</div>
+      <button class="btn" style="margin-top:16px;margin-bottom:24px" onclick="downloadPdf()">Скачать PDF</button>
+    </div>`;
+}
+
+// ── ВСЕ МАШИНЫ ───────────────────────────────────────────────────────────
+async function renderAllCars(){
+  const el = document.getElementById("view-all-cars");
+  el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Все машины</span></div>${skeleton(4)}`;
+  const { session } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  el.innerHTML = `
+    <div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Все машины</span></div>
+    <div class="content">
+      <div class="card">
+        ${session.cars.length ? session.cars.slice().reverse().map(c => `
+          <div class="row"><div><p class="name">${(c.time?c.time+" · ":"")}${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${c.payment}</p></div>
+          <div class="meta"><p class="price">${fmt(c.price)}</p><span class="del" onclick="delCar(${c.num})">Удалить</span></div></div>`).join("")
+          : `<p class="empty">Машин пока нет</p>`}
+      </div>
+      <button class="btn" style="margin-top:16px;margin-bottom:24px" onclick="switchTab('add')"><i class="ti ti-plus"></i> Новая машина</button>
+    </div>`;
+}
+
+// ── МОЙЩИКИ И ЗАРПЛАТЫ ───────────────────────────────────────────────────
+async function renderWorkers(){
+  const el = document.getElementById("view-workers");
+  if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
+  el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>${skeleton(3)}`;
+  const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
+  el.innerHTML = `
+    <div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>
+    <div class="content">
+      <div class="stat-grid">
+        <div class="stat-card"><p>К выплате сегодня</p><p>${fmt(totalSalary)}</p></div>
+        <div class="stat-card"><p>Мойщиков</p><p>${workers.length}</p></div>
+      </div>
+      <p class="section-label">Сегодня · ${BRANCH}</p>
+      <div class="card">
+        ${workers.length ? workers.map(w => {
+          const cnt = session.cars.filter(c => c.employee === w).length;
+          const sal = summary.washer_salaries?.[w] || 0;
+          return `<div class="row"><p class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}<span class="sub" style="margin-left:4px">${cnt} машин</span></p><p class="price">${fmt(sal)}</p></div>`;
+        }).join("") : `<p class="empty">Мойщиков пока нет — добавь в Настройках</p>`}
+      </div>
+    </div>`;
+}
+
+// ── НАСТРОЙКИ ────────────────────────────────────────────────────────────
+async function renderSettings(){
+  const el = document.getElementById("view-settings");
+  if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
+  el.innerHTML = `<div class="back-header"><span style="font-size:18px;font-weight:700">Настройки филиала</span></div>${skeleton(2)}`;
+  await ensureMe();
+  if (!ME.is_owner && !ME.is_branch_admin) {
+    el.innerHTML = `<div class="back-header"><span style="font-size:18px;font-weight:700">Настройки</span></div><div class="content"><p class="empty">Доступно только администратору филиала</p></div>`;
+    return;
+  }
+  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  el.innerHTML = `
+    <div class="back-header"><span style="font-size:18px;font-weight:700">Настройки филиала</span></div>
+    <div class="content">
+      <p class="label">Только для админа · ${BRANCH}</p>
+      <div class="card">
+        <div class="row link" onclick="uiAddWorker()"><span class="name"><i class="ti ti-user-plus icon-badge"></i>Добавить мойщика</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiRemoveWorker()"><span class="name"><i class="ti ti-user-minus icon-badge"></i>Удалить мойщика</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiSetBranchAdmin()"><span class="name"><i class="ti ti-shield-star icon-badge"></i>Назначить админа филиала</span><i class="ti ti-chevron-right chevron"></i></div>
+        ${ME.is_owner ? `
+        <div class="row link" onclick="uiAddUser()"><span class="name"><i class="ti ti-lock-access icon-badge"></i>Добавить доступ пользователю</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiRemoveUser()"><span class="name"><i class="ti ti-lock-open icon-badge"></i>Убрать доступ пользователя</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiListUsers()"><span class="name"><i class="ti ti-users icon-badge"></i>Список пользователей</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
+      </div>
+      <p class="section-label">Сотрудники (${workers.length})</p>
+      <div class="card">
+        ${workers.length ? workers.map(w => `<div class="row"><p class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</p><i class="ti ti-chevron-right chevron"></i></div>`).join("") : `<p class="empty">Пока никого</p>`}
+      </div>
+      <p class="section-label">Филиал</p>
+      <div class="card"><div class="row"><span class="name"><i class="ti ti-building-store icon-badge"></i>${BRANCH}</span></div></div>
+      <button class="btn secondary" style="margin-top:16px;margin-bottom:24px" onclick="switchBranch()">Сменить филиал</button>
+    </div>`;
+}
+window.switchBranch = () => { BRANCH = null; ME = null; switchTab("home"); };
+window.uiAddWorker = async () => {
+  const name = window.prompt("Имя мойщика:");
+  if (!name) return;
+  try { await api("/api/workers", { method: "POST", body: JSON.stringify({ branch: BRANCH, name }) }); haptic("medium"); renderSettings(); }
+  catch(e){}
+};
+window.uiRemoveWorker = async () => {
+  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  if (!workers.length) return tg.showAlert("Список сотрудников пуст");
+  const name = window.prompt(`Кого удалить?\n${workers.join(", ")}`);
+  if (!name) return;
+  try { await api(`/api/workers/${encodeURIComponent(BRANCH)}/${encodeURIComponent(name)}`, { method: "DELETE" }); haptic("medium"); renderSettings(); }
+  catch(e){}
+};
+window.uiSetBranchAdmin = async () => {
+  const idStr = window.prompt("Telegram ID нового админа филиала:");
+  const uid = parseInt(idStr || "", 10);
+  if (!uid) return;
+  try { await api("/api/branch-admin", { method: "POST", body: JSON.stringify({ branch: BRANCH, user_id: uid }) }); haptic("medium"); tg.showAlert("Админ назначен"); }
+  catch(e){}
+};
+window.uiAddUser = async () => {
+  const idStr = window.prompt("Telegram ID пользователя:");
+  const uid = parseInt(idStr || "", 10);
+  if (!uid) return;
+  const name = window.prompt("Имя пользователя:", "") || "Без имени";
+  try { await api("/api/users", { method: "POST", body: JSON.stringify({ user_id: uid, name }) }); haptic("medium"); tg.showAlert("Доступ выдан"); }
+  catch(e){}
+};
+window.uiRemoveUser = async () => {
+  const idStr = window.prompt("Telegram ID пользователя для удаления:");
+  const uid = parseInt(idStr || "", 10);
+  if (!uid) return;
+  try { await api(`/api/users/${uid}`, { method: "DELETE" }); haptic("medium"); tg.showAlert("Доступ отозван"); }
+  catch(e){}
+};
+window.uiListUsers = async () => {
+  try {
+    const { users } = await api("/api/users");
+    const lines = users.map(u => `${u.name} — ${u.user_id}`).join("\n") || "Список пуст";
+    tg.showAlert(lines);
+  } catch(e){}
+};
+
+// доп. подэкраны (не в таббаре)
+document.getElementById("view-home").insertAdjacentHTML("afterend", `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div>`);
+const _switchTab = switchTab;
+switchTab = function(name){
+  if (name === "day-report") {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll("[id^=view-]").forEach(v => v.classList.add("hidden"));
+    document.getElementById("view-day-report").classList.remove("hidden");
+    renderDayReport();
+    return;
+  }
+  if (name === "all-cars") {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll("[id^=view-]").forEach(v => v.classList.add("hidden"));
+    document.getElementById("view-all-cars").classList.remove("hidden");
+    renderAllCars();
+    return;
+  }
+  _switchTab(name);
+};
+
+switchTab("home");
+</script>
+</body>
+</html>
