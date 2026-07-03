@@ -49,10 +49,8 @@ def _register_fonts():
         if not registered:
             # Фолбэк: встроенный шрифт ReportLab (без кириллицы, но не упадёт)
             fallback = "Helvetica-Bold" if "Bold" in font_name else "Helvetica"
-            pdfmetrics.registerFont(TTFont.__new__(TTFont))
-            # Просто маппим имя на встроенный шрифт через подмену
             import reportlab.pdfbase.pdfmetrics as _m
-            _m._fonts[font_name] = _m._fonts.get(fallback, _m._fonts.get("Helvetica"))
+            _m._fonts[font_name] = _m.getFont(fallback)
 
 _register_fonts()
 
