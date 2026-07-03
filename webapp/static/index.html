@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CarWash</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #111111);
+    --hint: var(--tg-theme-hint-color, #999999);
+    --link: var(--tg-theme-link-color, #2481cc);
+    --btn: var(--tg-theme-button-color, #2481cc);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --sec-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:70px}
+  .container{padding:14px}
+  h1{font-size:18px;font-weight:600;margin:0 0 12px}
+  .card{background:var(--sec-bg);border-radius:14px;padding:14px;margin-bottom:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat-label{font-size:12px;color:var(--hint);margin:0}
+  .stat-value{font-size:20px;font-weight:600;margin:2px 0 0}
+  .btn{width:100%;background:var(--btn);color:var(--btn-text);border:none;border-radius:10px;height:44px;font-size:15px;font-weight:600;margin-top:6px}
+  .btn.secondary{background:var(--sec-bg);color:var(--text);border:1px solid var(--hint)}
+  .btn.small{height:34px;font-size:13px;width:auto;padding:0 12px}
+  select,input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--hint);background:var(--bg);color:var(--text);font-size:15px;margin-bottom:8px}
+  label{font-size:13px;color:var(--hint);display:block;margin:8px 0 4px}
+  .chip{display:inline-block;padding:6px 12px;border-radius:20px;border:1px solid var(--hint);margin:0 6px 6px 0;font-size:13px;cursor:pointer}
+  .chip.active{background:var(--btn);color:var(--btn-text);border-color:var(--btn)}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(128,128,128,.15)}
+  .row:last-child{border-bottom:none}
+  .row .name{font-size:14px;font-weight:500}
+  .row .sub{font-size:12px;color:var(--hint)}
+  .row .price{font-size:14px;font-weight:600}
+  .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--sec-bg);border-top:1px solid rgba(128,128,128,.2)}
+  .tab{flex:1;text-align:center;padding:8px 0 6px;font-size:11px;color:var(--hint)}
+  .tab.active{color:var(--link)}
+  .tab .ic{font-size:20px;display:block}
+  .hidden{display:none}
+  .del{color:#e5534b;font-size:12px}
+  .empty{color:var(--hint);font-size:13px;text-align:center;padding:20px 0}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div id="view-shift"></div>
+  <div id="view-add" class="hidden"></div>
+  <div id="view-reports" class="hidden"></div>
+  <div id="view-workers" class="hidden"></div>
+</div>
+
+<div class="tabbar">
+  <div class="tab active" data-tab="shift"><span class="ic">🏠</span>Смена</div>
+  <div class="tab" data-tab="add"><span class="ic">➕</span>Добавить</div>
+  <div class="tab" data-tab="reports"><span class="ic">📊</span>Отчёты</div>
+  <div class="tab" data-tab="workers"><span class="ic">👥</span>Мойщики</div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+
+const API = ""; // тот же домен, где отдаётся index.html
+const initData = tg.initData || "";
+const headers = { "Content-Type": "application/json", "X-Init-Data": initData };
+
+let CFG = null;
+let BRANCH = (tg.initDataUnsafe?.start_param) || null;
+let selectedServices = [];
+let customServices = [];
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  if (!res.ok) { tg.showAlert("Ошибка: " + (await res.text())); throw new Error("api"); }
+  return res.json();
+}
+
+function fmt(n){ return (n||0).toLocaleString("ru-RU") + " ₽"; }
+
+// ── Навигация ──────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll("[id^=view-]").forEach(v => v.classList.add("hidden"));
+  document.getElementById("view-" + name).classList.remove("hidden");
+  if (name === "shift") renderShift();
+  if (name === "add") renderAdd();
+  if (name === "reports") renderReports();
+  if (name === "workers") renderWorkers();
+}
+
+// ── Выбор филиала при первом запуске ─────────────────────────────────────
+async function ensureBranch() {
+  if (BRANCH) return;
+  CFG = CFG || await api("/api/config");
+  const el = document.getElementById("view-shift");
+  el.innerHTML = `<h1>Выбери филиал</h1>` + CFG.branches.map(b =>
+    `<button class="btn secondary" style="margin-bottom:8px" onclick="pickBranch('${b}')">${b}</button>`).join("");
+}
+window.pickBranch = (b) => { BRANCH = b; switchTab("shift"); };
+
+// ── Вкладка "Смена" ───────────────────────────────────────────────────
+async function renderShift(){
+  if (!BRANCH) return ensureBranch();
+  const el = document.getElementById("view-shift");
+  el.innerHTML = `<h1>${BRANCH}</h1><div class="card empty">Загрузка…</div>`;
+  const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  el.innerHTML = `
+    <h1>${BRANCH} · ${session.date || ""}</h1>
+    <div class="grid2">
+      <div class="card"><p class="stat-label">Касса</p><p class="stat-value">${fmt(summary.total)}</p></div>
+      <div class="card"><p class="stat-label">Общая (до скидок)</p><p class="stat-value">${fmt(summary.grand_total)}</p></div>
+      <div class="card"><p class="stat-label">Нал</p><p class="stat-value">${fmt(summary.cash)}</p></div>
+      <div class="card"><p class="stat-label">Виза / Безнал</p><p class="stat-value">${fmt(summary.visa + summary.beznal)}</p></div>
+    </div>
+    <button class="btn" onclick="switchTab('add')">➕ Добавить машину</button>
+    <div class="card" style="margin-top:12px">
+      <p class="stat-label" style="margin-bottom:4px">Машины (${session.cars.length})</p>
+      ${session.cars.length ? session.cars.slice().reverse().map(c => `
+        <div class="row">
+          <div>
+            <p class="name">${c.car || "Машина"} · ${c.service}</p>
+            <p class="sub">${c.employee} · ${c.payment}</p>
+          </div>
+          <div style="text-align:right">
+            <p class="price">${fmt(c.price)}</p>
+            <span class="del" onclick="delCar(${c.num})">удалить</span>
+          </div>
+        </div>`).join("") : `<p class="empty">Машин пока нет</p>`}
+    </div>`;
+}
+window.delCar = async (num) => {
+  tg.showConfirm("Удалить машину?", async (ok) => {
+    if (!ok) return;
+    await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}`, { method: "DELETE" });
+    renderShift();
+  });
+};
+
+// ── Вкладка "Добавить машину" ────────────────────────────────────────
+async function renderAdd(){
+  const el = document.getElementById("view-add");
+  if (!BRANCH) { el.innerHTML = `<p class="empty">Сначала выбери филиал во вкладке «Смена»</p>`; return; }
+  CFG = CFG || await api("/api/config");
+  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  selectedServices = []; customServices = [];
+
+  el.innerHTML = `
+    <h1>Новая машина</h1>
+    <label>Мойщик</label>
+    <select id="f-emp">${workers.map(w => `<option>${w}</option>`).join("")}</select>
+    <label>Тип кузова</label>
+    <select id="f-body">${CFG.body_types.map(b => `<option value="${b.key}">${b.name}</option>`).join("")}</select>
+    <label>Услуги</label>
+    <div id="f-services"></div>
+    <button class="btn secondary small" onclick="addCustomService()">➕ Другое (своя услуга)</button>
+    <div id="f-custom"></div>
+    <label>Марка машины</label>
+    <input id="f-car" placeholder="Camry">
+    <label>Оплата</label>
+    <select id="f-payment">${CFG.payment_types.map(p => `<option>${p}</option>`).join("")}</select>
+    <p class="stat-label" style="margin-top:10px">Итого</p>
+    <p class="stat-value" id="f-total">0 ₽</p>
+    <button class="btn" onclick="submitCar()">Сохранить машину</button>
+  `;
+  renderServiceChips();
+  document.getElementById("f-body").addEventListener("change", renderServiceChips);
+}
+
+function renderServiceChips(){
+  const bodyType = document.getElementById("f-body").value;
+  const wrap = document.getElementById("f-services");
+  wrap.innerHTML = CFG.services.map(s => {
+    const price = s.prices[bodyType] ?? Object.values(s.prices)[0];
+    const active = selectedServices.includes(s.key);
+    return `<span class="chip ${active?'active':''}" data-key="${s.key}" onclick="toggleService('${s.key}')">${s.name} (${price}₽)</span>`;
+  }).join("");
+  updateTotal();
+}
+window.toggleService = (key) => {
+  selectedServices = selectedServices.includes(key) ? selectedServices.filter(k=>k!==key) : [...selectedServices, key];
+  renderServiceChips();
+};
+
+window.addCustomService = () => {
+  tg.showPopup({
+    title: "Своя услуга",
+    message: "Введи данные через запятую: Название, Цена, Процент",
+    buttons: [{id:"ok", type:"default", text:"Дальше"}, {id:"cancel", type:"cancel"}]
+  });
+  // Telegram showPopup не поддерживает текстовый ввод — используем простые prompt-подобные шаги
+  const name = window.prompt("Название услуги:");
+  if (!name) return;
+  const price = parseInt(window.prompt("Цена (₽):", "1000") || "0", 10);
+  const percent = parseFloat(window.prompt("Процент мойщику (%):", "30") || "30");
+  customServices.push({ name, price, percent });
+  renderCustomList();
+};
+function renderCustomList(){
+  const wrap = document.getElementById("f-custom");
+  wrap.innerHTML = customServices.map((c,i) => `
+    <div class="row"><div><p class="name">${c.name}</p><p class="sub">${c.percent}%</p></div>
+    <div><span class="price">${c.price}₽</span> <span class="del" onclick="removeCustom(${i})">✖</span></div></div>
+  `).join("");
+  updateTotal();
+}
+window.removeCustom = (i) => { customServices.splice(i,1); renderCustomList(); };
+
+function updateTotal(){
+  const bodyType = document.getElementById("f-body")?.value;
+  let total = selectedServices.reduce((sum,k) => {
+    const s = CFG.services.find(s=>s.key===k);
+    return sum + (s.prices[bodyType] ?? Object.values(s.prices)[0]);
+  }, 0);
+  total += customServices.reduce((sum,c) => sum + c.price, 0);
+  const totalEl = document.getElementById("f-total");
+  if (totalEl) totalEl.textContent = fmt(total);
+}
+
+window.submitCar = async () => {
+  if (!selectedServices.length && !customServices.length) return tg.showAlert("Выбери хотя бы одну услугу");
+  const body = {
+    branch: BRANCH,
+    employee: document.getElementById("f-emp").value,
+    body_type: document.getElementById("f-body").value,
+    service_keys: selectedServices,
+    custom_services: customServices,
+    car: document.getElementById("f-car").value,
+    payment: document.getElementById("f-payment").value,
+  };
+  await api("/api/car", { method: "POST", body: JSON.stringify(body) });
+  tg.HapticFeedback.notificationOccurred("success");
+  switchTab("shift");
+};
+
+// ── Вкладка "Отчёты" ─────────────────────────────────────────────────
+async function renderReports(){
+  const el = document.getElementById("view-reports");
+  if (!BRANCH) { el.innerHTML = `<p class="empty">Сначала выбери филиал</p>`; return; }
+  el.innerHTML = `<h1>Отчёты · ${BRANCH}</h1><div class="card empty">Загрузка…</div>`;
+  const { days } = await api(`/api/archive?branch=${encodeURIComponent(BRANCH)}`);
+  el.innerHTML = `<h1>Отчёты · ${BRANCH}</h1>` + (days.length ? days.map(d => `
+    <div class="card">
+      <div class="row"><div><p class="name">${d.date}</p><p class="sub">${(d.cars||[]).length} машин</p></div>
+      <p class="price">${fmt(d.grand_total ?? d.total)}</p></div>
+    </div>`).join("") : `<p class="empty">Архив пуст</p>`);
+}
+
+// ── Вкладка "Мойщики" ─────────────────────────────────────────────────
+async function renderWorkers(){
+  const el = document.getElementById("view-workers");
+  if (!BRANCH) { el.innerHTML = `<p class="empty">Сначала выбери филиал</p>`; return; }
+  const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  el.innerHTML = `<h1>Мойщики · ${BRANCH}</h1><div class="card">` +
+    workers.map(w => {
+      const cnt = session.cars.filter(c => c.employee === w).length;
+      const sal = summary.washer_salaries?.[w] || 0;
+      return `<div class="row"><div><p class="name">${w}</p><p class="sub">${cnt} машин</p></div><p class="price">${fmt(sal)}</p></div>`;
+    }).join("") + `</div>`;
+}
+
+switchTab("shift");
+</script>
+</body>
+</html>
