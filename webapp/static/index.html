@@ -8,9 +8,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root{
-    --bg:#F5F5F5; --surface-0:#FFFFFF; --surface-1:#F0F0F0;
-    --text:#000000; --text-secondary:#6B6B6B; --text-muted:#9B9B9B;
-    --border:rgba(0,0,0,0.1); --red:#E53935;
+    --bg:#000000; --surface-0:#141414; --surface-1:#1C1C1E; --surface-2:#242426;
+    --text:#FFFFFF; --text-secondary:#9A9A9E; --text-muted:#6C6C70;
+    --border:rgba(255,255,255,0.08); --accent:#FFFFFF; --green:#33D17A; --red:#FF453A;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
@@ -20,83 +20,114 @@
     padding-bottom:calc(90px + env(safe-area-inset-bottom));
     -webkit-font-smoothing:antialiased;
   }
-  .container{max-width:460px;margin:0 auto;padding:0 0 8px}
-  .topbar{background:#000;padding:20px 18px 22px;color:#fff}
-  .topbar .brand{display:flex;align-items:center;gap:8px;margin-bottom:16px}
-  .topbar .brand .logo{width:26px;height:26px;border-radius:7px;background:#fff;display:flex;align-items:center;justify-content:center}
-  .topbar .brand .logo i{font-size:15px;color:#000}
-  .topbar .brand span{font-size:15px;font-weight:500}
-  .topbar .sub{font-size:13px;color:rgba(255,255,255,0.6);margin:0}
-  .topbar .amount{font-size:38px;font-weight:500;margin:2px 0 0}
-  .topbar .meta{display:flex;gap:16px;margin-top:10px}
-  .topbar .meta span{font-size:12px;color:rgba(255,255,255,0.7)}
-  .back{width:26px;height:26px;border-radius:7px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
-  .back i{font-size:16px;color:#000}
-  .header-row{display:flex;align-items:center;gap:10px}
+  .container{max-width:460px;margin:0 auto}
+  .topbar{padding:18px 18px 6px;display:flex;justify-content:space-between;align-items:flex-start}
+  .topbar h1{font-size:20px;font-weight:600;margin:0}
+  .topbar p{font-size:12px;color:var(--text-secondary);margin:2px 0 0}
+  .bell{width:36px;height:36px;border-radius:50%;background:var(--surface-1);display:flex;align-items:center;justify-content:center}
+  .bell i{font-size:17px}
+  .back-header{padding:14px 16px;display:flex;align-items:center;gap:12px}
+  .back-header .back{width:32px;height:32px;border-radius:50%;background:var(--surface-1);display:flex;align-items:center;justify-content:center}
+  .back-header .back i{font-size:16px}
+  .back-header span{font-size:16px;font-weight:600}
 
-  .content{padding:16px}
-  .page-title{font-size:22px;font-weight:600;margin:0 0 14px}
+  .content{padding:12px 16px 8px}
+  .page-title{font-size:20px;font-weight:600;margin:0 0 14px}
   .label{font-size:12px;color:var(--text-muted);margin:0 0 6px;font-weight:500}
-  .section-label{font-size:13px;color:var(--text-secondary);margin:0 0 8px;font-weight:500}
+  .section-label{font-size:13px;color:var(--text-secondary);margin:16px 2px 8px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+  .section-label .more{color:var(--text-muted);font-size:12px;font-weight:500}
 
-  .card{border:0.5px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface-0)}
-  .card + .card{margin-top:16px}
+  .hero-card{background:var(--surface-1);border-radius:20px;padding:18px;margin-top:4px}
+  .hero-card .row1{display:flex;justify-content:space-between;align-items:center}
+  .hero-card .lbl{font-size:13px;color:var(--text-secondary);margin:0}
+  .hero-card .pill{background:rgba(51,209,122,0.15);color:var(--green);font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px}
+  .hero-card .amount{font-size:34px;font-weight:700;margin:6px 0 0;letter-spacing:-0.02em}
+  .hero-card .sub{font-size:12px;color:var(--text-muted);margin:4px 0 0}
+
+  .card{border:0.5px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface-1)}
+  .card + .card{margin-top:14px}
   .card-pad{padding:14px 16px}
 
-  .row{display:flex;justify-content:space-between;align-items:center;padding:12px}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:13px 14px}
   .row + .row{border-top:0.5px solid var(--border)}
-  .row .name{font-size:14px;font-weight:500;margin:0}
-  .row .sub{font-size:12px;color:var(--text-secondary);margin:1px 0 0}
-  .row .price{font-size:14px;font-weight:500;margin:0}
+  .row .name{font-size:14px;font-weight:500;margin:0;display:flex;align-items:center;gap:10px}
+  .row .sub{font-size:12px;color:var(--text-muted);margin:2px 0 0}
+  .row .price{font-size:14px;font-weight:600;margin:0}
   .row .meta{text-align:right}
   .row.link{cursor:pointer}
-  .row.link:active{background:var(--surface-1)}
+  .row.link:active{background:var(--surface-2)}
+  .row .chevron{color:var(--text-muted);font-size:16px}
+  .row .icon-badge{width:20px;text-align:center;color:var(--text-secondary)}
 
-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-  .stat-card{background:var(--surface-1);border-radius:14px;padding:1rem}
-  .stat-card p:first-child{font-size:12px;color:var(--text-secondary);margin:0 0 4px}
-  .stat-card p:last-child{font-size:20px;font-weight:500;margin:0}
+  .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .stat3 .box{background:var(--surface-1);border-radius:16px;padding:12px 8px;text-align:center}
+  .stat3 .box i{font-size:20px;color:var(--text-secondary);margin-bottom:6px;display:block}
+  .stat3 .box b{font-size:15px;font-weight:600;display:block}
+  .stat3 .box span{font-size:10px;color:var(--text-muted)}
 
-  .quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
-  .quick-item{text-align:center;cursor:pointer}
-  .quick-item .ic{width:48px;height:48px;border-radius:14px;background:var(--surface-1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 4px}
-  .quick-item .ic i{font-size:20px}
-  .quick-item p{font-size:11px;margin:0}
+  .quick3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .quick3 .box{background:var(--surface-1);border-radius:16px;padding:14px 6px;text-align:center;cursor:pointer}
+  .quick3 .box i{font-size:20px;margin-bottom:6px;display:block}
+  .quick3 .box span{font-size:11px;color:var(--text-secondary)}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .stat-card{background:var(--surface-1);border-radius:16px;padding:14px 16px}
+  .stat-card p:first-child{font-size:12px;color:var(--text-secondary);margin:0 0 6px}
+  .stat-card p:last-child{font-size:19px;font-weight:600;margin:0}
 
   button{font-family:inherit;cursor:pointer}
-  .btn{width:100%;background:#000;color:#fff;border:0.5px solid #000;border-radius:12px;height:46px;font-size:15px;font-weight:500;margin-top:8px}
+  .btn{width:100%;background:#fff;color:#000;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px}
   .btn:active{opacity:0.75}
-  .btn.secondary{background:#fff;color:#000}
-  .btn.danger{background:#fff;color:var(--red);border-color:var(--red)}
-  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn.secondary{background:var(--surface-1);color:#fff}
+  .btn.ghost{background:transparent;color:var(--text-secondary);border:0.5px solid var(--border)}
 
-  select,input{width:100%;padding:12px 14px;border-radius:12px;border:0.5px solid var(--border);background:var(--surface-0);color:var(--text);font-size:15px;margin-bottom:10px;-webkit-appearance:none;appearance:none}
-  select:focus,input:focus{outline:none;border-color:#000}
+  select,input,textarea{width:100%;padding:14px;border-radius:14px;border:none;background:var(--surface-1);color:var(--text);font-size:15px;margin-bottom:12px;-webkit-appearance:none;appearance:none}
+  select:focus,input:focus,textarea:focus{outline:1px solid rgba(255,255,255,0.3)}
+  textarea{resize:none;min-height:70px;font-family:inherit}
+  ::placeholder{color:var(--text-muted)}
 
-  .chip-label{display:flex;justify-content:space-between;align-items:center;padding:12px;cursor:pointer}
+  .field-select{position:relative}
+  .field-select select{padding-right:36px}
+  .field-select::after{content:"";position:absolute;right:14px;top:50%;transform:translateY(-60%) rotate(45deg);width:7px;height:7px;border-right:1.5px solid var(--text-muted);border-bottom:1.5px solid var(--text-muted);pointer-events:none}
+
+  .chip-label{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer}
   .chip-label + .chip-label{border-top:0.5px solid var(--border)}
-  .chip-label .l{font-size:14px;display:flex;align-items:center;gap:8px}
+  .chip-label .l{font-size:14px}
   .chip-label .r{display:flex;align-items:center;gap:10px}
   .chip-label .p{font-size:13px;color:var(--text-secondary)}
-  input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:#000}
+  input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:#fff}
 
   .del{color:var(--red);font-size:12px;font-weight:500}
-
   .empty{color:var(--text-muted);font-size:14px;text-align:center;padding:32px 16px}
-  .skeleton{background:var(--surface-1);border-radius:14px;height:56px;margin-bottom:10px;animation:pulse 1.2s ease-in-out infinite}
+  .skeleton{background:var(--surface-1);border-radius:16px;height:56px;margin-bottom:10px;animation:pulse 1.2s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
 
-  .branch-pick{width:100%;text-align:left;background:var(--surface-0);border:0.5px solid var(--border);border-radius:14px;padding:16px;font-size:15px;font-weight:500;margin-bottom:10px;color:var(--text);display:flex;justify-content:space-between;align-items:center}
+  .branch-pick{width:100%;text-align:left;background:var(--surface-1);border:none;border-radius:16px;padding:16px;font-size:15px;font-weight:500;margin-bottom:10px;color:var(--text);display:flex;justify-content:space-between;align-items:center}
   .branch-pick:active{opacity:0.7}
-  .chev{color:var(--text-muted);font-size:16px}
 
-  .avatar{width:26px;height:26px;border-radius:50%;background:var(--surface-1);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+  .avatar.lg{width:64px;height:64px;font-size:22px;margin:0 auto}
 
-  .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);padding-bottom:env(safe-area-inset-bottom);max-width:460px;margin:0 auto}
-  .tab{flex:1;text-align:center;padding:8px 0 6px;font-size:10px;color:var(--text-muted);font-weight:500}
-  .tab.active{color:#000}
+  .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(20,20,20,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);padding-bottom:env(safe-area-inset-bottom);max-width:460px;margin:0 auto}
+  .tab{flex:1;text-align:center;padding:10px 0 6px;font-size:10px;color:var(--text-muted);font-weight:500}
+  .tab.active{color:#fff}
   .tab i{font-size:20px;display:block;margin-bottom:2px}
   .hidden{display:none}
+
+  .segmented{display:flex;background:var(--surface-1);border-radius:12px;padding:3px;margin-bottom:14px}
+  .segmented .seg{flex:1;text-align:center;padding:8px 0;font-size:13px;font-weight:600;color:var(--text-secondary);border-radius:10px}
+  .segmented .seg.active{background:#fff;color:#000}
+
+  .donut-wrap{display:flex;align-items:center;gap:20px;padding:18px 16px}
+  .donut{width:120px;height:120px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center}
+  .donut::after{content:"";position:absolute;inset:14px;background:var(--surface-1);border-radius:50%}
+  .donut .center{position:relative;z-index:1;text-align:center}
+  .donut .center b{font-size:15px;display:block}
+  .donut .center span{font-size:10px;color:var(--text-muted)}
+  .legend{flex:1}
+  .legend .item{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}
+  .legend .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .legend .item b{margin-left:auto;font-weight:600}
 </style>
 </head>
 <body>
@@ -119,7 +150,7 @@
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
-try{ tg.setHeaderColor("#000000"); }catch(e){}
+try{ tg.setHeaderColor("#000000"); tg.setBackgroundColor("#000000"); }catch(e){}
 
 const API = "";
 const initData = tg.initData || "";
@@ -140,6 +171,8 @@ async function api(path, opts = {}) {
 function fmt(n){ return (n||0).toLocaleString("ru-RU") + " ₽"; }
 function haptic(type="light"){ try{ tg.HapticFeedback.impactOccurred(type); }catch(e){} }
 function initials(name){ return (name||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase(); }
+const AVATAR_COLORS = ["#FF9F0A","#FF453A","#33D17A","#0A84FF","#BF5AF2","#64D2FF","#FFD60A"];
+function avatarColor(name){ let h=0; for(const c of (name||"")) h=(h*31+c.charCodeAt(0))>>>0; return AVATAR_COLORS[h%AVATAR_COLORS.length]; }
 
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { haptic(); switchTab(t.dataset.tab); }));
 function switchTab(name){
@@ -152,8 +185,7 @@ function switchTab(name){
   if (name === "workers") renderWorkers();
   if (name === "settings") renderSettings();
 }
-function skeleton(n=3){ return Array(n).fill('<div class="skeleton"></div>').join(""); }
-
+function skeleton(n=3){ return `<div class="content">` + Array(n).fill('<div class="skeleton"></div>').join("") + `</div>`; }
 async function ensureMe(){ ME = ME || await api(`/api/me?branch=${encodeURIComponent(BRANCH||"")}`); return ME; }
 
 async function ensureBranch() {
@@ -161,7 +193,7 @@ async function ensureBranch() {
   CFG = CFG || await api("/api/config");
   const el = document.getElementById("view-home");
   el.innerHTML = `<div class="content"><p class="page-title">Выбери филиал</p>` + CFG.branches.map(b =>
-    `<button class="branch-pick" onclick="pickBranch('${b}')">${b}<span class="chev"><i class="ti ti-chevron-right"></i></span></button>`).join("") + `</div>`;
+    `<button class="branch-pick" onclick="pickBranch('${b}')">${b}<i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></button>`).join("") + `</div>`;
 }
 window.pickBranch = (b) => { BRANCH = b; ME = null; haptic("medium"); switchTab("home"); };
 
@@ -169,48 +201,38 @@ window.pickBranch = (b) => { BRANCH = b; ME = null; haptic("medium"); switchTab(
 async function renderHome(){
   if (!BRANCH) return ensureBranch();
   const el = document.getElementById("view-home");
-  el.innerHTML = `<div class="topbar"><div class="brand"><div class="logo"><i class="ti ti-car"></i></div><span>ClaudeFormula 2.0</span></div></div><div class="content">${skeleton(3)}</div>`;
+  el.innerHTML = `<div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div><div class="bell"><i class="ti ti-bell"></i></div></div>${skeleton(3)}`;
   const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
   el.innerHTML = `
-    <div class="topbar">
-      <div class="brand"><div class="logo"><i class="ti ti-car"></i></div><span>ClaudeFormula 2.0</span></div>
-      <p class="sub">Касса сегодня · ${BRANCH}</p>
-      <p class="amount">${fmt(summary.total)}</p>
-      <div class="meta">
-        <span><i class="ti ti-car"></i> ${session.cars.length} машин</span>
-        <span><i class="ti ti-calendar"></i> ${session.date || ""}</span>
-      </div>
-    </div>
+    <div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div><div class="bell" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div></div>
     <div class="content">
-      <div class="quick-grid">
-        <div class="quick-item" onclick="switchTab('add')"><div class="ic"><i class="ti ti-plus"></i></div><p>Машина</p></div>
-        <div class="quick-item" onclick="downloadPdf()"><div class="ic"><i class="ti ti-file-text"></i></div><p>PDF</p></div>
-        <div class="quick-item" onclick="startNewDay()"><div class="ic"><i class="ti ti-refresh"></i></div><p>Новый день</p></div>
+      <div class="hero-card">
+        <div class="row1"><p class="lbl">Касса сегодня</p></div>
+        <p class="amount">${fmt(summary.total)}</p>
+        <p class="sub">${BRANCH} · ${session.date || ""}</p>
       </div>
-      <p class="section-label">Последние машины</p>
+      <div class="stat3">
+        <div class="box"><i class="ti ti-car"></i><b>${session.cars.length}</b><span>Машин сегодня</span></div>
+        <div class="box"><i class="ti ti-users"></i><b>${workers.length}</b><span>Мойщиков</span></div>
+        <div class="box"><i class="ti ti-wallet"></i><b>${totalSalary.toLocaleString("ru-RU")}₽</b><span>В выплате</span></div>
+      </div>
+      <p class="section-label">Быстрые действия</p>
+      <div class="quick3">
+        <div class="box" onclick="switchTab('add')"><i class="ti ti-square-rounded-plus"></i><span>Новая машина</span></div>
+        <div class="box" onclick="switchTab('reports')"><i class="ti ti-chart-bar"></i><span>Отчёты</span></div>
+        <div class="box" onclick="switchTab('workers')"><i class="ti ti-users"></i><span>Мойщики</span></div>
+      </div>
+      <div class="section-label">Последние машины<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
       <div class="card">
-        ${session.cars.length ? session.cars.slice().reverse().slice(0,10).map(c => `
-          <div class="row">
-            <div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${c.payment}</p></div>
-            <div class="meta"><p class="price">${fmt(c.price)}</p><span class="del" onclick="delCar(${c.num})">Удалить</span></div>
-          </div>`).join("") : `<p class="empty">Машин пока нет</p>`}
+        ${session.cars.length ? session.cars.slice().reverse().slice(0,6).map(c => `
+          <div class="row"><div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${c.payment}</p></div>
+          <p class="price">${fmt(c.price)}</p></div>`).join("") : `<p class="empty">Машин пока нет</p>`}
       </div>
-      <p class="section-label" style="margin-top:16px">Ещё</p>
-      <div class="card">
-        <div class="row link" onclick="switchTab('workers')"><span class="name">Мойщики и зарплаты</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="switchTab('reports')"><span class="name">Отчёты · неделя/месяц</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="switchTab('settings')"><span class="name">Настройки филиала (админ)</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-      </div>
+      <button class="btn secondary" style="margin-top:16px;margin-bottom:8px" onclick="startNewDay()">Закрыть смену / новый день</button>
     </div>`;
 }
-window.delCar = async (num) => {
-  tg.showConfirm("Удалить машину?", async (ok) => {
-    if (!ok) return;
-    haptic("medium");
-    await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}`, { method: "DELETE" });
-    renderHome();
-  });
-};
 window.startNewDay = async () => {
   tg.showConfirm("Закрыть смену и начать новый день? Текущая касса уйдёт в архив.", async (ok) => {
     if (!ok) return;
@@ -220,6 +242,14 @@ window.startNewDay = async () => {
   });
 };
 window.downloadPdf = () => { window.open(`/api/reports/pdf?branch=${encodeURIComponent(BRANCH)}`, "_blank"); };
+window.delCar = async (num) => {
+  tg.showConfirm("Удалить машину?", async (ok) => {
+    if (!ok) return;
+    haptic("medium");
+    await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}`, { method: "DELETE" });
+    switchTab("home");
+  });
+};
 
 // ── ДОБАВЛЕНИЕ МАШИНЫ ────────────────────────────────────────────────────
 async function renderAdd(){
@@ -230,40 +260,31 @@ async function renderAdd(){
   selectedServices = []; customServices = [];
 
   el.innerHTML = `
-    <div class="topbar"><div class="header-row"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span style="font-size:15px;font-weight:500">Новая машина</span></div></div>
+    <div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Новая машина</span></div>
     <div class="content">
-      <p class="label">Мойщик</p>
-      <select id="f-emp">${workers.length ? workers.map(w => `<option>${w}</option>`).join("") : `<option value="">Нет сотрудников</option>`}</select>
-      <p class="label">Тип кузова</p>
-      <select id="f-body">${CFG.body_types.map(b => `<option value="${b.key}">${b.name}</option>`).join("")}</select>
       <p class="label">Марка машины</p>
       <input id="f-car" placeholder="Camry">
-      <p class="section-label" style="margin-top:16px">Услуги</p>
+      <p class="label">Тип кузова</p>
+      <div class="field-select"><select id="f-body">${CFG.body_types.map(b => `<option value="${b.key}">${b.name}</option>`).join("")}</select></div>
+      <p class="label">Услуги</p>
       <div id="f-services" class="card"></div>
-      <button class="btn secondary" onclick="addCustomService()"><i class="ti ti-plus"></i> Своя услуга</button>
+      <button class="btn ghost" onclick="addCustomService()"><i class="ti ti-plus"></i> Своя услуга</button>
       <div id="f-custom"></div>
-      <p class="label" style="margin-top:16px">Оплата</p>
-      <div class="btn-row" id="f-payment-row"></div>
-      <div class="card card-pad" style="margin-top:16px;display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:14px;color:var(--text-secondary)">Итого</span>
-        <span style="font-size:24px;font-weight:500" id="f-total">0 ₽</span>
+      <p class="label" style="margin-top:12px">Мойщик</p>
+      <div class="field-select"><select id="f-emp">${workers.length ? workers.map(w => `<option>${w}</option>`).join("") : `<option value="">Нет сотрудников</option>`}</select></div>
+      <p class="label">Способ оплаты</p>
+      <div class="field-select"><select id="f-payment">${CFG.payment_types.map(p => `<option>${p}</option>`).join("")}</select></div>
+      <p class="label">Комментарий</p>
+      <textarea id="f-comment" placeholder="Комментарий (необязательно)"></textarea>
+      <div class="card card-pad" style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:14px;color:var(--text-secondary)">Стоимость</span>
+        <span style="font-size:24px;font-weight:700" id="f-total">0 ₽</span>
       </div>
-      <button class="btn" style="margin-bottom:24px" onclick="submitCar()">Сохранить</button>
+      <button class="btn" style="margin-bottom:24px" onclick="submitCar()">Добавить машину</button>
     </div>`;
   renderServiceChips();
-  renderPaymentButtons();
   document.getElementById("f-body").addEventListener("change", renderServiceChips);
 }
-function renderPaymentButtons(){
-  const wrap = document.getElementById("f-payment-row");
-  const icons = {"нал":"ti-cash","visa":"ti-credit-card","безнал":"ti-building-bank"};
-  window.selectedPayment = window.selectedPayment && CFG.payment_types.includes(window.selectedPayment) ? window.selectedPayment : CFG.payment_types[0];
-  wrap.innerHTML = CFG.payment_types.map(p => `
-    <button type="button" class="btn ${p===window.selectedPayment?'':'secondary'}" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:0" onclick="pickPayment('${p}')"><i class="ti ${icons[p]||'ti-wallet'}"></i>${p}</button>
-  `).join("");
-}
-window.pickPayment = (p) => { window.selectedPayment = p; renderPaymentButtons(); };
-
 function renderServiceChips(){
   const bodyType = document.getElementById("f-body").value;
   const wrap = document.getElementById("f-services");
@@ -316,7 +337,8 @@ window.submitCar = async () => {
     body_type: document.getElementById("f-body").value,
     service_keys: selectedServices, custom_services: customServices,
     car: document.getElementById("f-car").value,
-    payment: window.selectedPayment,
+    payment: document.getElementById("f-payment").value,
+    comment: document.getElementById("f-comment").value,
   };
   await api("/api/car", { method: "POST", body: JSON.stringify(body) });
   haptic("medium"); switchTab("home");
@@ -327,25 +349,25 @@ async function renderReports(){
   const el = document.getElementById("view-reports");
   if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
   await ensureMe();
-  el.innerHTML = `<div class="topbar"><span style="font-size:15px;font-weight:500">Отчёты</span></div><div class="content">${skeleton(3)}</div>`;
-  const [{ summary: today }, week] = await Promise.all([
-    api(`/api/session?branch=${encodeURIComponent(BRANCH)}`),
+  el.innerHTML = `<div class="back-header"><span style="font-size:18px;font-weight:700">Отчёты</span></div>${skeleton(3)}`;
+  const [today, week] = await Promise.all([
+    api(`/api/reports/today?branch=${encodeURIComponent(BRANCH)}`),
     api(`/api/reports/week?branch=${encodeURIComponent(BRANCH)}`),
   ]);
   el.innerHTML = `
-    <div class="topbar"><span style="font-size:15px;font-weight:500">Отчёты</span></div>
+    <div class="back-header"><span style="font-size:18px;font-weight:700">Отчёты</span></div>
     <div class="content">
       <div class="stat-grid">
-        <div class="stat-card"><p>Сегодня</p><p>${fmt(today.grand_total)}</p></div>
+        <div class="stat-card"><p>Сегодня</p><p>${fmt(today.summary.grand_total)}</p></div>
         <div class="stat-card"><p>Неделя</p><p>${fmt(week.grand_total)}</p></div>
       </div>
-      <div class="card">
-        <div class="row link" onclick="openMonthReport()"><span class="name"><i class="ti ti-calendar-event" style="margin-right:8px"></i>За месяц</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="switchTab('workers')"><span class="name"><i class="ti ti-report" style="margin-right:8px"></i>Общий отчёт (сегодня)</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        ${ME.is_owner ? `<div class="row link" onclick="openAllReport()"><span class="name"><i class="ti ti-building-store" style="margin-right:8px"></i>Отчёт по всем филиалам</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>` : ""}
-        <div class="row link" onclick="downloadPdf()"><span class="name"><i class="ti ti-file-type-pdf" style="margin-right:8px"></i>Скачать PDF (сегодня)</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
+      <div class="card" style="margin-top:14px">
+        <div class="row link" onclick="switchTab('day-report')"><span class="name"><i class="ti ti-chart-donut icon-badge"></i>Общий отчёт (сегодня)</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="openMonthReport()"><span class="name"><i class="ti ti-calendar-event icon-badge"></i>За месяц</span><i class="ti ti-chevron-right chevron"></i></div>
+        ${ME.is_owner ? `<div class="row link" onclick="openAllReport()"><span class="name"><i class="ti ti-building-store icon-badge"></i>Отчёт по всем филиалам</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
+        <div class="row link" onclick="downloadPdf()"><span class="name"><i class="ti ti-file-type-pdf icon-badge"></i>Скачать PDF (сегодня)</span><i class="ti ti-chevron-right chevron"></i></div>
       </div>
-      <p class="section-label" style="margin-top:16px">За неделю (${week.from} – ${week.to})</p>
+      <p class="section-label">За неделю (${week.from} – ${week.to})</p>
       <div class="card">
         ${week.days.length ? week.days.map(d => `
           <div class="row"><div><p class="name">${d.date}</p><p class="sub">${d.cars} машин</p></div><p class="price">${fmt(d.total)}</p></div>
@@ -371,111 +393,8 @@ window.openAllReport = async () => {
   } catch(e){}
 };
 
-// ── МОЙЩИКИ И ЗАРПЛАТЫ ───────────────────────────────────────────────────
-async function renderWorkers(){
-  const el = document.getElementById("view-workers");
-  if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
-  el.innerHTML = `<div class="topbar"><span style="font-size:15px;font-weight:500">Мойщики и зарплаты</span></div><div class="content">${skeleton(3)}</div>`;
-  const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
-  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
-  const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
-  el.innerHTML = `
-    <div class="topbar"><span style="font-size:15px;font-weight:500">Мойщики и зарплаты</span></div>
-    <div class="content">
-      <div class="stat-grid">
-        <div class="stat-card"><p>К выплате сегодня</p><p>${fmt(totalSalary)}</p></div>
-        <div class="stat-card"><p>Мойщиков</p><p>${workers.length}</p></div>
-      </div>
-      <p class="section-label">Сегодня · ${BRANCH}</p>
-      <div class="card">
-        ${workers.length ? workers.map(w => {
-          const cnt = session.cars.filter(c => c.employee === w).length;
-          const sal = summary.washer_salaries?.[w] || 0;
-          return `<div class="row"><div><p class="name" style="display:flex;align-items:center;gap:8px"><span class="avatar">${initials(w)}</span>${w}</p><p class="sub" style="margin-left:34px">${cnt} машин</p></div><p class="price">${fmt(sal)}</p></div>`;
-        }).join("") : `<p class="empty">Мойщиков пока нет — добавь в Настройках</p>`}
-      </div>
-    </div>`;
-}
-
-// ── НАСТРОЙКИ ────────────────────────────────────────────────────────────
-async function renderSettings(){
-  const el = document.getElementById("view-settings");
-  if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
-  el.innerHTML = `<div class="topbar"><span style="font-size:15px;font-weight:500">Настройки филиала</span></div><div class="content">${skeleton(2)}</div>`;
-  await ensureMe();
-  if (!ME.is_owner && !ME.is_branch_admin) {
-    el.innerHTML = `<div class="topbar"><span style="font-size:15px;font-weight:500">Настройки</span></div><div class="content"><p class="empty">Доступно только администратору филиала</p></div>`;
-    return;
-  }
-  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
-  el.innerHTML = `
-    <div class="topbar"><span style="font-size:15px;font-weight:500">Настройки филиала</span></div>
-    <div class="content">
-      <p class="label">Только для админа · ${BRANCH}</p>
-      <div class="card">
-        <div class="row link" onclick="uiAddWorker()"><span class="name"><i class="ti ti-user-plus" style="margin-right:8px"></i>Добавить мойщика</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="uiRemoveWorker()"><span class="name"><i class="ti ti-user-minus" style="margin-right:8px"></i>Удалить мойщика</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="uiSetBranchAdmin()"><span class="name"><i class="ti ti-shield-star" style="margin-right:8px"></i>Назначить админа филиала</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        ${ME.is_owner ? `
-        <div class="row link" onclick="uiAddUser()"><span class="name"><i class="ti ti-lock-access" style="margin-right:8px"></i>Добавить доступ пользователю</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="uiRemoveUser()"><span class="name"><i class="ti ti-lock-open" style="margin-right:8px"></i>Убрать доступ пользователя</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>
-        <div class="row link" onclick="uiListUsers()"><span class="name"><i class="ti ti-users" style="margin-right:8px"></i>Список пользователей</span><i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></div>` : ""}
-      </div>
-      <p class="section-label" style="margin-top:16px">Сотрудники (${workers.length})</p>
-      <div class="card">
-        ${workers.length ? workers.map(w => `<div class="row"><span class="name">${w}</span></div>`).join("") : `<p class="empty">Пока никого</p>`}
-      </div>
-      <p class="section-label" style="margin-top:16px">Филиал</p>
-      <div class="card"><div class="row"><span class="name"><i class="ti ti-building-store" style="margin-right:8px"></i>${BRANCH}</span></div></div>
-      <button class="btn secondary" style="margin-top:16px" onclick="switchBranch()">Сменить филиал</button>
-    </div>`;
-}
-window.switchBranch = () => { BRANCH = null; ME = null; switchTab("home"); };
-window.uiAddWorker = async () => {
-  const name = window.prompt("Имя мойщика:");
-  if (!name) return;
-  try { await api("/api/workers", { method: "POST", body: JSON.stringify({ branch: BRANCH, name }) }); haptic("medium"); renderSettings(); }
-  catch(e){}
-};
-window.uiRemoveWorker = async () => {
-  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
-  if (!workers.length) return tg.showAlert("Список сотрудников пуст");
-  const name = window.prompt(`Кого удалить?\n${workers.join(", ")}`);
-  if (!name) return;
-  try { await api(`/api/workers/${encodeURIComponent(BRANCH)}/${encodeURIComponent(name)}`, { method: "DELETE" }); haptic("medium"); renderSettings(); }
-  catch(e){}
-};
-window.uiSetBranchAdmin = async () => {
-  const idStr = window.prompt("Telegram ID нового админа филиала:");
-  const uid = parseInt(idStr || "", 10);
-  if (!uid) return;
-  try { await api("/api/branch-admin", { method: "POST", body: JSON.stringify({ branch: BRANCH, user_id: uid }) }); haptic("medium"); tg.showAlert("Админ назначен"); }
-  catch(e){}
-};
-window.uiAddUser = async () => {
-  const idStr = window.prompt("Telegram ID пользователя:");
-  const uid = parseInt(idStr || "", 10);
-  if (!uid) return;
-  const name = window.prompt("Имя пользователя:", "") || "Без имени";
-  try { await api("/api/users", { method: "POST", body: JSON.stringify({ user_id: uid, name }) }); haptic("medium"); tg.showAlert("Доступ выдан"); }
-  catch(e){}
-};
-window.uiRemoveUser = async () => {
-  const idStr = window.prompt("Telegram ID пользователя для удаления:");
-  const uid = parseInt(idStr || "", 10);
-  if (!uid) return;
-  try { await api(`/api/users/${uid}`, { method: "DELETE" }); haptic("medium"); tg.showAlert("Доступ отозван"); }
-  catch(e){}
-};
-window.uiListUsers = async () => {
-  try {
-    const { users } = await api("/api/users");
-    const lines = users.map(u => `${u.name} — ${u.user_id}`).join("\n") || "Список пуст";
-    tg.showAlert(lines);
-  } catch(e){}
-};
-
-switchTab("home");
-</script>
-</body>
-</html>
+// ── ОБЩИЙ ОТЧЁТ (донат) ──────────────────────────────────────────────────
+async function renderDayReport(){
+  const el = document.getElementById("view-day-report");
+  el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('reports')"><i class="ti ti-chevron-left"></i></div><span>Общий отчёт (сегодня)</span></div>${skeleton(2)}`;
+  const r = await api(`/api/reports/today?branch=$
