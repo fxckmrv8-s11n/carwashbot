@@ -10,9 +10,9 @@ Backend Mini App для CarWash-бота.
 Для Telegram Mini App нужен публичный HTTPS-адрес (ngrok / Render / Railway),
 см. README в этой папке.
 """
-import sys, os, hashlib, hmac, json, tempfile
+import sys, os, hashlib, hmac, json, tempfile, asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from urllib.parse import parse_qsl
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,6 +35,10 @@ from sessions import (
 )
 from calculator import calculate_summary
 from pdf_generator import generate_pdf
+from xlsx_generator import generate_xlsx
+from history_log import log_action, get_history
+from presets import list_presets, add_preset, delete_preset
+from notify import notify_user
 
 MONTHS_RU = {
     "январь": 1, "февраль": 2, "март": 3, "апрель": 4,
@@ -79,6 +83,21 @@ def current_user_id(x_init_data: str = Header(default="")) -> int:
     return int(user.get("id", 0))
 
 
+def current_user_name(x_init_data: str = Header(default="")) -> str:
+    user = auth_optional(x_init_data)
+    return user.get("first_name", "") or user.get("username", "") or "—"
+
+
+def find_user_id_by_name(name: str) -> int:
+    """Ищем telegram id пользователя по имени среди тех, кому уже выдан доступ
+    (используется, чтобы уведомить сотрудника при добавлении, если он уже
+    есть в списке пользователей)."""
+    for uid, uname in load_users().items():
+        if uname.strip().lower() == name.strip().lower():
+            return int(uid)
+    return 0
+
+
 def require_branch_admin(branch: str, x_init_data: str = Header(default="")):
     uid = current_user_id(x_init_data)
     if not is_branch_admin(uid, branch):
@@ -121,6 +140,24 @@ class WorkerIn(BaseModel):
 class BranchAdminIn(BaseModel):
     branch: str
     user_id: int
+
+
+class CarEditIn(BaseModel):
+    employee: Optional[str] = None
+    body_type: Optional[str] = None
+    service_keys: Optional[list[str]] = None
+    custom_services: Optional[list[dict]] = None
+    car: Optional[str] = None
+    payment: Optional[str] = None
+    payment_split: Optional[Dict[str, int]] = None
+    comment: Optional[str] = None
+
+
+class PresetIn(BaseModel):
+    branch: str
+    name: str
+    service_keys: list[str] = []
+    custom_services: list[dict] = []
 
 
 class UserIn(BaseModel):
@@ -168,6 +205,9 @@ def api_add_worker(body: WorkerIn, x_init_data: str = Header(default="")):
     added = add_branch_worker(body.branch, body.name.strip())
     if not added:
         raise HTTPException(400, "Такой сотрудник уже есть")
+    uid = find_user_id_by_name(body.name.strip())
+    if uid:
+        notify_user(uid, f"Вас добавили сотрудником в филиал «{body.branch}» ✅")
     return {"ok": True, "workers": get_branch_workers(body.branch)}
 
 
@@ -184,6 +224,7 @@ def api_set_branch_admin(body: BranchAdminIn, x_init_data: str = Header(default=
     if uid != OWNER_ID and not is_branch_admin(uid, body.branch):
         raise HTTPException(403, "Нет прав")
     set_branch_admin(body.branch, body.user_id)
+    notify_user(body.user_id, f"Вас назначили администратором филиала «{body.branch}» 🛡️")
     return {"ok": True, "admin_id": get_branch_admin(body.branch)}
 
 
@@ -217,7 +258,7 @@ def api_session(branch: str):
 
 
 @app.post("/api/car")
-def api_add_car(body: CarIn):
+def api_add_car(body: CarIn, x_init_data: str = Header(default="")):
     session = get_session(body.branch)
     body_type = body.body_type
 
@@ -262,14 +303,82 @@ def api_add_car(body: CarIn):
     }
     session["cars"].append(car)
     save_sessions()
+    log_action(body.branch, "add", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{car['car'] or 'машина'} · {car['service']} · {total_price}₽")
+    return {"ok": True, "car": car, "summary": calculate_summary(session)}
+
+
+def _rebuild_car_breakdown(body_type: str, service_keys: list, custom_services: list) -> dict:
+    breakdown = {}
+    for k in service_keys:
+        if k not in SERVICES:
+            continue
+        breakdown[k] = {
+            "name": SERVICES[k]["name"],
+            "price": get_service_price(k, body_type),
+            "percent": SERVICES[k]["percent"],
+        }
+    for i, c in enumerate(custom_services):
+        breakdown[f"custom_{i}"] = {
+            "name": c["name"], "price": int(c["price"]), "percent": float(c["percent"]) / 100,
+        }
+    return breakdown
+
+
+@app.put("/api/car/{branch}/{num}")
+def api_edit_car(branch: str, num: int, body: CarEditIn, x_init_data: str = Header(default="")):
+    """Редактирование существующей машины (услуги/оплата/мойщик и т.д.),
+    вместо удаления и создания заново."""
+    session = get_session(branch)
+    car = next((c for c in session["cars"] if c["num"] == num), None)
+    if not car:
+        raise HTTPException(404, "Машина не найдена")
+
+    if body.employee is not None:
+        car["employee"] = body.employee
+    if body.car is not None:
+        car["car"] = body.car
+    if body.comment is not None:
+        car["comment"] = body.comment
+    if body.payment is not None:
+        car["payment"] = body.payment
+    if body.payment_split is not None:
+        car["payment_split"] = body.payment_split or None
+
+    if body.body_type is not None or body.service_keys is not None or body.custom_services is not None:
+        body_type = body.body_type or car["body_type"]
+        service_keys = body.service_keys if body.service_keys is not None else car["service_keys"]
+        custom_services = body.custom_services if body.custom_services is not None else car["custom_services"]
+        breakdown = _rebuild_car_breakdown(body_type, service_keys, custom_services)
+        if not breakdown:
+            raise HTTPException(400, "Нужна хотя бы одна услуга")
+        total_price = sum(v["price"] for v in breakdown.values())
+        if car.get("payment_split"):
+            split_sum = sum(car["payment_split"].values())
+            if split_sum != total_price:
+                raise HTTPException(400, f"Сумма раздельной оплаты ({split_sum}₽) не совпадает со стоимостью ({total_price}₽)")
+        car["body_type"] = body_type
+        car["service_keys"] = service_keys
+        car["custom_services"] = custom_services
+        car["price_breakdown"] = breakdown
+        car["service"] = " + ".join(v["name"] for v in breakdown.values())
+        car["price"] = total_price
+
+    save_sessions()
+    log_action(branch, "edit", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{car['car'] or 'машина'} · {car['service']} · {car['price']}₽")
     return {"ok": True, "car": car, "summary": calculate_summary(session)}
 
 
 @app.delete("/api/car/{branch}/{num}")
-def api_delete_car(branch: str, num: int):
+def api_delete_car(branch: str, num: int, x_init_data: str = Header(default="")):
     session = get_session(branch)
+    car = next((c for c in session["cars"] if c["num"] == num), None)
     session["cars"] = [c for c in session["cars"] if c["num"] != num]
     save_sessions()
+    if car:
+        log_action(branch, "delete", current_user_id(x_init_data), current_user_name(x_init_data),
+                   f"{car.get('car') or 'машина'} · {car.get('service','')} · {car.get('price',0)}₽")
     return {"ok": True, "summary": calculate_summary(session)}
 
 
@@ -406,6 +515,56 @@ def api_report_pdf(branch: str, date: str = ""):
     generate_pdf(day_data, summary, pdf_path)
     return FileResponse(pdf_path, media_type="application/pdf",
                         filename=f"Касса_{branch}_{date}.pdf")
+
+
+@app.get("/api/reports/xlsx")
+def api_report_xlsx(branch: str, date: str = ""):
+    archive = load_archive()
+    if date:
+        day_data = archive.get(branch, {}).get(date)
+        if not day_data:
+            raise HTTPException(404, f"Нет данных за {date} в «{branch}»")
+    else:
+        day_data = get_session(branch)
+        date = day_data.get("date", datetime.now().strftime("%d.%m.%Y"))
+        if not day_data.get("cars"):
+            raise HTTPException(404, "Нет данных за сегодня")
+
+    summary = calculate_summary(day_data)
+    safe_branch = branch.replace(" ", "_")
+    xlsx_path = os.path.join(tempfile.gettempdir(), f"report_{safe_branch}_{date.replace('.', '')}.xlsx")
+    generate_xlsx(day_data, summary, xlsx_path)
+    return FileResponse(
+        xlsx_path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=f"Касса_{branch}_{date}.xlsx",
+    )
+
+
+# ── История изменений кассы ──────────────────────────────────────────────
+@app.get("/api/history")
+def api_history(branch: str, limit: int = 100):
+    return {"entries": get_history(branch, limit)}
+
+
+# ── Пресеты услуг ────────────────────────────────────────────────────────
+@app.get("/api/presets")
+def api_get_presets(branch: str):
+    return {"presets": list_presets(branch)}
+
+
+@app.post("/api/presets")
+def api_add_preset(body: PresetIn):
+    if not body.service_keys and not body.custom_services:
+        raise HTTPException(400, "Нужна хотя бы одна услуга в пресете")
+    presets = add_preset(body.branch, body.name.strip(), body.service_keys, body.custom_services)
+    return {"ok": True, "presets": presets}
+
+
+@app.delete("/api/presets/{branch}/{name}")
+def api_delete_preset(branch: str, name: str):
+    presets = delete_preset(branch, name)
+    return {"ok": True, "presets": presets}
 
 
 # ── Статика (сама Mini App) ─────────────────────────────────────────────
