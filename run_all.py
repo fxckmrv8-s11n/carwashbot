@@ -9,22 +9,32 @@
     python run_all.py
 """
 import os
+import sys
 import threading
+import traceback
 
 import uvicorn
 
 from bot import main as bot_main
 from sessions import load_sessions
 
+print("🚀 run_all.py стартовал", flush=True)
+
 
 def run_web():
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("webapp.server:app", host="0.0.0.0", port=port, log_level="info")
+    try:
+        port = int(os.environ.get("PORT", 8000))
+        print(f"🌐 Запускаю веб-сервер на 0.0.0.0:{port} ...", flush=True)
+        uvicorn.run("webapp.server:app", host="0.0.0.0", port=port, log_level="info")
+    except Exception:
+        print("❌ ВЕБ-СЕРВЕР УПАЛ ПРИ СТАРТЕ:", flush=True)
+        traceback.print_exc()
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":
     load_sessions()  # грузим данные с диска в общую память ДО старта обоих сервисов
     web_thread = threading.Thread(target=run_web, daemon=True)
     web_thread.start()
-    print("🌐 Веб-сервер (Mini App) запущен в фоновом потоке")
+    print("🌐 Веб-сервер (Mini App) запущен в фоновом потоке", flush=True)
     bot_main()  # блокирующий вызов — держит процесс живым
