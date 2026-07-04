@@ -156,7 +156,7 @@ def draw_header_table(c, session, summary, y_top):
     text_in(c, x, y_top, w - right_col, rh, "Дневная выручка (общая):", bold=True, size=FS)
     grand = summary.get("grand_total", summary["total"])
     text_in(c, x + w - right_col, y_top, right_col, rh,
-            f"{grand} ₽", bold=True, align="center", size=FS)
+            f"{grand} руб.", bold=True, align="center", size=FS)
     y_top -= rh
 
     # ── Строка 3.1: Лояльность (только если есть) — справочно, не входит в кассу
@@ -164,7 +164,7 @@ def draw_header_table(c, session, summary, y_top):
     if total_loyalty > 0:
         rect(c, x, y_top, w, rh)
         vline(c, x + w - right_col, y_top, rh)
-        text_in(c, x, y_top, w - right_col, rh, f"Лояльность: {total_loyalty} ₽", bold=False, size=FS)
+        text_in(c, x, y_top, w - right_col, rh, f"Лояльность: {total_loyalty} руб.", bold=False, size=FS)
         y_top -= rh
 
     # ── Строка 4: Наличка / Безнал / Visa
@@ -177,16 +177,16 @@ def draw_header_table(c, session, summary, y_top):
     vline(c, x + third,       y_top, rh)
     vline(c, x + third * 2,   y_top, rh)
 
-    text_in(c, x,                y_top, third, rh, f"Наличка:  {summary['cash']} ₽",   bold=False, size=FS)
-    text_in(c, x + third,        y_top, third, rh, f"Безнал:  {summary['beznal']} ₽",  bold=False, size=FS)
-    text_in(c, x + third * 2,    y_top, third, rh, f"Visa:  {summary['visa']} ₽",      bold=False, size=FS)
+    text_in(c, x,                y_top, third, rh, f"Наличка:  {summary['cash']} руб.",   bold=False, size=FS)
+    text_in(c, x + third,        y_top, third, rh, f"Безнал:  {summary['beznal']} руб.",  bold=False, size=FS)
+    text_in(c, x + third * 2,    y_top, third, rh, f"Visa:  {summary['visa']} руб.",      bold=False, size=FS)
     y_top -= rh
 
     # ── Строка 5: Зарплата
     rect(c, x, y_top, w, rh)
     vline(c, x + w - right_col, y_top, rh)
-    sal_parts = [f"{e} — {s} ₽" for e, s in summary["washer_salaries"].items()]
-    sal_parts.append(f"Салим — {summary['admin_salary']} ₽")
+    sal_parts = [f"{e} — {s} руб." for e, s in summary["washer_salaries"].items()]
+    sal_parts.append(f"Салим — {summary['admin_salary']} руб.")
     sal_str = ";   ".join(sal_parts)
     text_in(c, x, y_top, 18*mm, rh, "Зарплата:", bold=True, size=FS)
     text_in(c, x + 18*mm, y_top, w - right_col - 18*mm, rh, sal_str, bold=False, size=FS - 0.5)
@@ -200,7 +200,7 @@ def draw_header_table(c, session, summary, y_top):
     text_in(c, x + 18*mm, y_top, w - right_col - 18*mm, rh, exp_str, bold=False, size=FS)
     if summary["total_expenses"] > 0:
         text_in(c, x + w - right_col, y_top, right_col, rh,
-                f"{summary['total_expenses']} ₽", bold=False, align="center", size=FS)
+                f"{summary['total_expenses']} руб.", bold=False, align="center", size=FS)
     y_top -= rh
 
     # ── Строка 7: Остаток
@@ -208,7 +208,7 @@ def draw_header_table(c, session, summary, y_top):
     vline(c, x + w - right_col, y_top, rh)
     text_in(c, x, y_top, 18*mm, rh, "Остаток:", bold=True, size=FS)
     text_in(c, x + w - right_col, y_top, right_col, rh,
-            f"{summary['remainder']} ₽", bold=True, align="center", size=FS + 1)
+            f"{summary['remainder']} руб.", bold=True, align="center", size=FS + 1)
     y_top -= rh
 
     return y_top
@@ -255,7 +255,7 @@ def draw_product_row(c, y_top, num, product, shade=False):
         (str(num),                       "center"),
         (product.get("name", ""),        "left"),
         ("Товар",                        "center"),
-        (f"{product.get('price','')} ₽", "center"),
+        (f"{product.get('price','')} руб.", "center"),
         (product.get("payment", ""),     "center"),
     ]
     cx = x
@@ -279,7 +279,7 @@ def draw_products_header_row(c, y_top, total_products):
     for i, w in enumerate(ws):
         rect(c, cx, y_top, w, h)
         if i == 1:
-            text_in(c, cx, y_top, w, h, f"Товары (итого {total_products} ₽)", bold=True, size=FS,
+            text_in(c, cx, y_top, w, h, f"Товары (итого {total_products} руб.)", bold=True, size=FS,
                     color=colors.HexColor("#1A5276"))
         cx += w
 
@@ -307,17 +307,25 @@ def draw_car_row(c, y_top, num, car, shade=False):
     else:
         service_label = car.get("service", "")
 
+    payment_split = car.get("payment_split")
+    payment_label = "/".join(payment_split.keys()) if payment_split else car.get("payment", "")
+
+    payment_split = car.get("payment_split")
+    payment_label = "/".join(payment_split.keys()) if payment_split else car.get("payment", "")
+    payment_size  = FS - 2 if payment_split else FS
+
     values = [
         (str(num),                    "center"),
         (car.get("car", ""),          "left"),
         (service_label,               "center"),
-        (f"{car.get('price','')} ₽",  "center"),
-        (car.get("payment", ""),      "center"),
+        (f"{car.get('price','')} руб.",  "center"),
+        (payment_label,                "center"),
     ]
+    sizes = [FS, FS, FS, FS, payment_size]
     cx = x
-    for (val, aln), w in zip(values, ws):
+    for (val, aln), w, sz in zip(values, ws, sizes):
         rect(c, cx, y_top, w, h)
-        text_in(c, cx, y_top, w, h, val, align=aln, size=FS)
+        text_in(c, cx, y_top, w, h, val, align=aln, size=sz)
         cx += w
 
     return y_top - h
@@ -351,7 +359,7 @@ def draw_subtotal_row(c, y_top, emp, washer_totals, washer_salaries):
 
     earned = washer_totals.get(emp, 0)
     sal    = washer_salaries.get(emp, 0)
-    txt    = f"Итог {emp}:   намыл {earned} ₽   →   зарплата (30%) = {sal} ₽"
+    txt    = f"Итог {emp}:   намыл {earned} руб.   →   зарплата (30%) = {sal} руб."
 
     filled_rect(c, x, y_top, CW, h, BG)
     cx = x
@@ -468,18 +476,19 @@ def generate_pdf(session: dict, summary: dict, output_path: str):
     y_foot = MB + 5 * mm
     c.setStrokeColor(BLACK)
     c.setLineWidth(0.5)
-    c.line(ML, y_foot + 4*mm, PAGE_W - MR, y_foot + 4*mm)
+    c.line(ML, y_foot + 8*mm, PAGE_W - MR, y_foot + 8*mm)
+
+    c.setFont(F, FS - 1.5)
+    c.setFillColor(colors.grey)
+    c.drawRightString(PAGE_W - MR, y_foot + 10*mm,
+        f"Сформировано автоматически  |  {session['date']}")
 
     total_w = sum(v for v in summary["washer_totals"].values())
     admin_base = total_w + summary.get("total_products", 0)
     c.setFont(FB, FS - 0.5)
     c.setFillColor(BLACK)
     c.drawString(ML, y_foot,
-        f"Салим (Администратор): 10% от {admin_base} ₽ (мойка {total_w} ₽ + товары {summary.get('total_products', 0)} ₽) = {summary['admin_salary']} ₽")
-    c.setFont(F, FS - 1.5)
-    c.setFillColor(colors.grey)
-    c.drawRightString(PAGE_W - MR, y_foot,
-        f"Сформировано автоматически  |  {session['date']}")
+        f"Салим (Администратор): 10% от {admin_base} руб. (мойка {total_w} руб. + товары {summary.get('total_products', 0)} руб.) = {summary['admin_salary']} руб.")
     c.setFillColor(BLACK)
 
     c.save()
