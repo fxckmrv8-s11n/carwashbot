@@ -5,3 +5,4 @@ pytz
 httpx[socks]
 fastapi
 uvicorn
+openpyxl
