@@ -22,14 +22,39 @@ def calculate_summary(session: dict) -> dict:
     # car["price"] хранит ПОЛНУЮ стоимость услуги (без вычета скидки).
     # Скидка лояльности хранится отдельно в session["loyalty"].
     # Поэтому чтобы получить реально поступившие деньги — вычитаем скидку.
-    raw_cash   = sum(c["price"] for c in cars if c["payment"].lower() in ["нал","наличка"])
-    raw_visa   = sum(c["price"] for c in cars if c["payment"].lower() in ["visa","виза"])
-    raw_beznal = sum(c["price"] for c in cars if c["payment"].lower() in ["безнал","петрон","petron"])
+    def car_amounts(c):
+        """Возвращает {метод: сумма} для машины — с учётом раздельной оплаты."""
+        split = c.get("payment_split")
+        if split:
+            return {k.lower(): v for k, v in split.items() if v}
+        return {c["payment"].lower(): c["price"]}
+
+    def sum_method(cars_list, keys):
+        total = 0
+        for c in cars_list:
+            for method, amount in car_amounts(c).items():
+                if method in keys:
+                    total += amount
+        return total
+
+    raw_cash   = sum_method(cars, ["нал", "наличка"])
+    raw_visa   = sum_method(cars, ["visa", "виза"])
+    raw_beznal = sum_method(cars, ["безнал", "петрон", "petron"])
 
     # Для отображения — сколько скидок пришлось на какой тип оплаты
-    loyalty_cash   = sum(loyalty_by_car.get(c["num"], 0) for c in cars if c["payment"].lower() in ["нал","наличка"])
-    loyalty_visa   = sum(loyalty_by_car.get(c["num"], 0) for c in cars if c["payment"].lower() in ["visa","виза"])
-    loyalty_beznal = sum(loyalty_by_car.get(c["num"], 0) for c in cars if c["payment"].lower() in ["безнал","петрон","petron"])
+    # (для машин с раздельной оплатой скидка относится к оплате наличными по умолчанию)
+    def loyalty_method(c):
+        split = c.get("payment_split")
+        if split:
+            for k in split:
+                if k.lower() in ["нал", "наличка"]:
+                    return "нал"
+            return list(split.keys())[0].lower()
+        return c["payment"].lower()
+
+    loyalty_cash   = sum(loyalty_by_car.get(c["num"], 0) for c in cars if loyalty_method(c) in ["нал","наличка"])
+    loyalty_visa   = sum(loyalty_by_car.get(c["num"], 0) for c in cars if loyalty_method(c) in ["visa","виза"])
+    loyalty_beznal = sum(loyalty_by_car.get(c["num"], 0) for c in cars if loyalty_method(c) in ["безнал","петрон","petron"])
 
     # Реально поступившие деньги (после вычета скидки)
     cash   = raw_cash   - loyalty_cash
