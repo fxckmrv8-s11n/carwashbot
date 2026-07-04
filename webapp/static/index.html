@@ -91,6 +91,15 @@
   .stat-card p:first-child{font-size:12px;color:var(--text-secondary);margin:0 0 6px}
   .stat-card p:last-child{font-size:19px;font-weight:600;margin:0}
 
+  .worker-row{padding:12px 14px}
+  .worker-row + .worker-row{border-top:0.5px solid var(--border)}
+  .worker-row .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .worker-row .top .name{font-size:14px;font-weight:500;margin:0;display:flex;align-items:center;gap:8px}
+  .worker-row .top .price{font-size:15px;font-weight:600}
+  .worker-row .bar-track{height:4px;background:var(--border);border-radius:2px;margin-left:36px}
+  .worker-row .bar-fill{height:100%;background:var(--text);border-radius:2px}
+  .worker-row .meta{font-size:11px;color:var(--text-muted);margin:5px 0 0 36px}
+
   button{font-family:inherit;cursor:pointer}
   .btn{width:100%;background:#fff;color:#000;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px}
   .btn:active{opacity:0.75}
@@ -593,7 +602,15 @@ async function renderWorkers(){
         ${workers.length ? workers.map(w => {
           const cnt = session.cars.filter(c => c.employee === w).length;
           const sal = summary.washer_salaries?.[w] || 0;
-          return `<div class="row"><p class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}<span class="sub" style="margin-left:4px">${cnt} машин</span></p><p class="price">${fmt(sal)}</p></div>`;
+          return { w, cnt, sal };
+        }).sort((a,b) => b.sal - a.sal).map(({w, cnt, sal}) => {
+          const maxSal = Math.max(1, ...workers.map(x => summary.washer_salaries?.[x] || 0));
+          const pct = Math.max(4, Math.round((sal / maxSal) * 100));
+          return `<div class="worker-row">
+            <div class="top"><span class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</span><span class="price">${fmt(sal)}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            <p class="meta">${cnt} машин</p>
+          </div>`;
         }).join("") : `<p class="empty">Мойщиков пока нет — добавь в Настройках</p>`}
       </div>
     </div>`;
