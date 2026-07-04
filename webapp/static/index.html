@@ -45,8 +45,21 @@
   .hero-card .row1{display:flex;justify-content:space-between;align-items:center}
   .hero-card .lbl{font-size:13px;color:var(--text-secondary);margin:0}
   .hero-card .pill{background:rgba(51,209,122,0.15);color:var(--green);font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px}
-  .hero-card .amount{font-size:34px;font-weight:700;margin:6px 0 0;letter-spacing:-0.02em}
+  .hero-card .amount-row{display:flex;align-items:baseline;gap:8px;margin-top:2px}
+  .hero-card .amount{font-size:34px;font-weight:700;margin:0;letter-spacing:-0.02em}
   .hero-card .sub{font-size:12px;color:var(--text-muted);margin:4px 0 0}
+  .spark{display:flex;align-items:flex-end;gap:4px;height:36px;margin-top:16px}
+  .spark .bar{flex:1;background:var(--border-strong,rgba(255,255,255,0.15));border-radius:3px;min-height:4px}
+  .spark .bar.today{background:var(--accent)}
+  .spark-labels{display:flex;justify-content:space-between;margin-top:6px}
+  .spark-labels span{font-size:10px;color:var(--text-muted);flex:1;text-align:center}
+  .spark-labels span.today{color:var(--text)}
+
+  .avatar-row{display:flex;gap:14px;overflow-x:auto;padding-bottom:2px}
+  .avatar-row .av{text-align:center;flex-shrink:0}
+  .avatar-row .circle{width:44px;height:44px;border-radius:50%;background:var(--surface-1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin:0 auto 4px}
+  .avatar-row .circle.more{border:1px dashed var(--border-strong,var(--text-muted));background:none;font-size:16px}
+  .avatar-row p{font-size:10px;color:var(--text-secondary);margin:0;max-width:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   .card{border:0.5px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface-1)}
   .card + .card{margin-top:14px}
@@ -63,11 +76,10 @@
   .row .chevron{color:var(--text-muted);font-size:16px}
   .row .icon-badge{width:20px;text-align:center;color:var(--text-secondary)}
 
-  .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-  .stat3 .box{background:var(--surface-1);border-radius:16px;padding:12px 8px;text-align:center}
-  .stat3 .box i{font-size:20px;color:var(--text-secondary);margin-bottom:6px;display:block}
-  .stat3 .box b{font-size:15px;font-weight:600;display:block}
-  .stat3 .box span{font-size:10px;color:var(--text-muted)}
+  .stat2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
+  .stat2 .box{background:var(--surface-1);border-radius:16px;padding:12px 14px}
+  .stat2 .box span{font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px}
+  .stat2 .box b{font-size:18px;font-weight:600;display:block}
 
   .quick3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
   .quick3 .box{background:var(--surface-1);border-radius:16px;padding:14px 6px;text-align:center;cursor:pointer}
@@ -228,20 +240,56 @@ async function renderHome(){
   el.innerHTML = `<div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div><div class="bell"><i class="ti ti-bell"></i></div></div>${skeleton(3)}`;
   const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
   const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const week = await api(`/api/reports/week?branch=${encodeURIComponent(BRANCH)}`).catch(() => ({ grand_total: 0, days: [] }));
   const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
+
+  const dayLetters = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  const now = new Date();
+  const todayIdx = (now.getDay() + 6) % 7;
+  const byDate = {};
+  (week.days || []).forEach(d => { byDate[d.date] = d.total; });
+  const weekTotals = [];
+  for (let i = 0; i <= todayIdx; i++) {
+    const dt = new Date(now); dt.setDate(now.getDate() - (todayIdx - i));
+    const key = dt.toLocaleDateString("ru-RU").split(".").map((p,idx)=>idx<2?p.padStart(2,"0"):p).join(".");
+    weekTotals.push(byDate[key] || 0);
+  }
+  const maxVal = Math.max(1, ...weekTotals);
+  const bars = dayLetters.map((_, i) => {
+    if (i > todayIdx) return `<div class="bar" style="height:4px;opacity:0.25"></div>`;
+    const v = weekTotals[i] || 0;
+    const h = Math.max(6, Math.round((v / maxVal) * 36));
+    return `<div class="bar ${i===todayIdx?'today':''}" style="height:${h}px"></div>`;
+  }).join("");
+  const labels = dayLetters.map((d,i) => `<span class="${i===todayIdx?'today':''}">${d}</span>`).join("");
+
+  const prevAvg = weekTotals.slice(0, -1).reduce((a,b)=>a+b,0) / Math.max(1, weekTotals.length - 1);
+  const trendPct = prevAvg > 0 ? Math.round(((summary.total - prevAvg) / prevAvg) * 100) : null;
+  const trendPill = trendPct === null ? "" :
+    `<span class="pill" style="${trendPct < 0 ? 'background:rgba(255,69,58,0.15);color:var(--red)' : ''}">${trendPct >= 0 ? '+' : ''}${trendPct}%</span>`;
+
+  const avatars = workers.slice(0, 4).map(w =>
+    `<div class="av"><div class="circle">${initials(w)}</div><p>${w}</p></div>`).join("");
+  const moreAvatar = workers.length > 4
+    ? `<div class="av"><div class="circle more" onclick="switchTab('workers')"><i class="ti ti-dots"></i></div><p>Ещё</p></div>`
+    : `<div class="av"><div class="circle more" onclick="uiAddWorker()"><i class="ti ti-plus"></i></div><p>Ещё</p></div>`;
+
   el.innerHTML = `
     <div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div><div class="bell" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div></div>
     <div class="content">
       <div class="hero-card">
         <div class="row1"><p class="lbl">Касса сегодня</p></div>
-        <p class="amount">${fmt(summary.total)}</p>
+        <div class="amount-row"><p class="amount">${fmt(summary.total)}</p>${trendPill}</div>
         <p class="sub">${BRANCH} · ${session.date || ""}</p>
+        <div class="spark">${bars}</div>
+        <div class="spark-labels">${labels}</div>
       </div>
-      <div class="stat3">
-        <div class="box"><i class="ti ti-car"></i><b>${session.cars.length}</b><span>Машин сегодня</span></div>
-        <div class="box"><i class="ti ti-users"></i><b>${workers.length}</b><span>Мойщиков</span></div>
-        <div class="box"><i class="ti ti-wallet"></i><b>${totalSalary.toLocaleString("ru-RU")}₽</b><span>В выплате</span></div>
+      <div class="stat2">
+        <div class="box"><span>Машин сегодня</span><b>${session.cars.length}</b></div>
+        <div class="box"><span>В выплате</span><b>${totalSalary.toLocaleString("ru-RU")}₽</b></div>
       </div>
+      <p class="section-label">Мойщики сегодня</p>
+      <div class="avatar-row">${avatars}${moreAvatar}</div>
       <p class="section-label">Быстрые действия</p>
       <div class="quick3">
         <div class="box" onclick="switchTab('add')"><i class="ti ti-square-rounded-plus"></i><span>Новая машина</span></div>
