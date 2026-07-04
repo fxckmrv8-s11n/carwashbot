@@ -156,6 +156,48 @@
   .legend .item{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}
   .legend .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
   .legend .item b{margin-left:auto;font-weight:600}
+
+  .swipe-card{background:var(--surface-1);border-radius:16px;padding:16px;position:relative;touch-action:pan-y}
+  .swipe-card .counter{position:absolute;top:12px;right:14px;font-size:11px;color:var(--text-muted)}
+  .swipe-card .car-name{font-size:16px;font-weight:600;margin:0 0 3px}
+  .swipe-card .car-sub{font-size:12px;color:var(--text-secondary);margin:0 0 10px}
+  .swipe-card .car-price{font-size:22px;font-weight:600;margin:0}
+  .swipe-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px}
+  .swipe-nav button{width:30px;height:30px;border-radius:50%;background:var(--surface-1);border:none;color:var(--text);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .swipe-dots{display:flex;gap:4px}
+  .swipe-dots span{width:5px;height:5px;border-radius:50%;background:var(--border,rgba(255,255,255,0.15))}
+  .swipe-dots span.on{background:#fff}
+
+  .tag-row{display:flex;flex-wrap:wrap;gap:8px}
+  .tag{background:var(--surface-1);border-radius:12px;padding:7px 12px;display:flex;align-items:center;gap:7px;cursor:pointer}
+  .tag:active{background:var(--surface-2)}
+  .tag .av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0}
+  .tag span{font-size:12px}
+  .tag-add{border:1px dashed var(--text-muted);border-radius:12px;padding:7px 14px;color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer}
+  .group-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin:16px 2px 8px}
+
+  .wtable-head{display:grid;grid-template-columns:1.6fr 0.7fr 1fr;font-size:10px;color:var(--text-muted);padding:0 14px 8px}
+  .wtable-row{display:grid;grid-template-columns:1.6fr 0.7fr 1fr;padding:10px 14px;align-items:center;font-size:13px}
+  .wtable-row + .wtable-row{border-top:0.5px solid var(--border)}
+  .wtable-row .wname{display:flex;align-items:center;gap:7px}
+  .wtable-row .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  .wtable-row .wcount{text-align:center;color:var(--text-secondary)}
+  .wtable-row .wsal{text-align:right;font-weight:600}
+
+  .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tile{background:var(--surface-1);border-radius:12px;padding:14px 6px;text-align:center;cursor:pointer}
+  .tile.primary{background:#fff;color:#000}
+  .tile i{font-size:18px}
+  .tile p{font-size:11px;margin:6px 0 0;font-weight:500}
+
+  .timeline{position:relative;padding-left:16px}
+  .timeline::before{content:"";position:absolute;left:4px;top:4px;bottom:4px;width:1px;background:var(--border)}
+  .timeline-item{position:relative;margin-bottom:14px;cursor:pointer}
+  .timeline-item:last-child{margin-bottom:0}
+  .timeline-item .tdot{position:absolute;left:-16px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--text-muted)}
+  .timeline-item:first-child .tdot{background:var(--text)}
+  .timeline-item .ttime{font-size:11px;color:var(--text-muted);margin:0}
+  .timeline-item .tname{font-size:13px;margin:2px 0 0}
 </style>
 </head>
 <body>
@@ -305,15 +347,48 @@ async function renderHome(){
         <div class="box" onclick="switchTab('reports')"><i class="ti ti-chart-bar"></i><span>Отчёты</span></div>
         <div class="box" onclick="switchTab('workers')"><i class="ti ti-users"></i><span>Мойщики</span></div>
       </div>
-      <div class="section-label">Последние машины<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
-      <div class="card">
-        ${session.cars.length ? session.cars.slice().reverse().slice(0,6).map(c => `
-          <div class="row link" onclick="uiCarQuick(${c.num})"><div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${paymentLabel(c)}</p></div>
-          <p class="price">${fmt(c.price)}</p></div>`).join("") : `<p class="empty">Машин пока нет</p>`}
-      </div>
+      <div class="section-label">Машины сегодня<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
+      <div id="home-swipe-wrap"></div>
       <button class="btn secondary" style="margin-top:16px;margin-bottom:28px" onclick="startNewDay()">Закрыть смену / новый день</button>
     </div>`;
+  HOME_CARS = session.cars.slice().reverse();
+  HOME_IDX = 0;
+  renderHomeSwipeCard();
 }
+let HOME_CARS = [];
+let HOME_IDX = 0;
+function renderHomeSwipeCard(){
+  const wrap = document.getElementById("home-swipe-wrap");
+  if (!wrap) return;
+  if (!HOME_CARS.length) { wrap.innerHTML = `<p class="empty">Машин пока нет</p>`; return; }
+  if (HOME_IDX < 0) HOME_IDX = HOME_CARS.length - 1;
+  if (HOME_IDX >= HOME_CARS.length) HOME_IDX = 0;
+  const c = HOME_CARS[HOME_IDX];
+  const dots = HOME_CARS.slice(0, 8).map((_, i) => `<span class="${i===HOME_IDX?'on':''}"></span>`).join("");
+  wrap.innerHTML = `
+    <div class="swipe-card" id="home-swipe-el">
+      <span class="counter">${HOME_IDX+1}/${HOME_CARS.length}</span>
+      <p class="car-name">${c.car || "Машина"}</p>
+      <p class="car-sub">${c.employee} · ${c.service}</p>
+      <p class="car-price">${fmt(c.price)}</p>
+      <span class="del" style="display:inline-block;margin-top:6px" onclick="uiCarQuick(${c.num})">Удалить</span>
+    </div>
+    <div class="swipe-nav">
+      <button onclick="homeSwipeStep(-1)"><i class="ti ti-chevron-left"></i></button>
+      <div class="swipe-dots">${dots}</div>
+      <button onclick="homeSwipeStep(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>`;
+  const el = document.getElementById("home-swipe-el");
+  let startX = null;
+  el.addEventListener("touchstart", e => { startX = e.touches[0].clientX; });
+  el.addEventListener("touchend", e => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) homeSwipeStep(dx < 0 ? 1 : -1);
+    startX = null;
+  });
+}
+window.homeSwipeStep = (dir) => { haptic(); HOME_IDX += dir; renderHomeSwipeCard(); };
 window.uiWorkerQuick = async (name) => {
   const { summary, session } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
   const cnt = session.cars.filter(c => c.employee === name).length;
@@ -325,7 +400,9 @@ window.uiCarQuick = (num) => {
     if (!ok) return;
     haptic("medium");
     await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}`, { method: "DELETE" });
-    renderHome();
+    HOME_IDX = Math.max(0, HOME_IDX - 1);
+    const activeTab = document.querySelector(".tab.active")?.dataset.tab || "home";
+    switchTab(activeTab);
   });
 };
 window.startNewDay = async () => {
@@ -511,16 +588,24 @@ async function renderReports(){
   el.innerHTML = `
     <div class="back-header"><span style="font-size:18px;font-weight:700">Отчёты</span></div>
     <div class="content">
-      <div class="stat-grid">
-        <div class="stat-card"><p>Сегодня</p><p>${fmt(today.summary.grand_total)}</p></div>
-        <div class="stat-card"><p>Неделя</p><p>${fmt(week.grand_total)}</p></div>
+      <p class="label">Сегодня</p>
+      <p style="font-size:30px;font-weight:700;margin:0 0 14px">${fmt(today.summary.grand_total)}</p>
+      <div class="tile-grid" style="margin-bottom:16px">
+        <div class="tile" onclick="switchTab('day-report')"><i class="ti ti-chart-donut" aria-hidden="true"></i><p>Общий отчёт</p></div>
+        <div class="tile" onclick="openMonthReport()"><i class="ti ti-calendar-event" aria-hidden="true"></i><p>За месяц</p></div>
+        ${ME.is_owner ? `<div class="tile" onclick="openAllReport()"><i class="ti ti-building-store" aria-hidden="true"></i><p>Все филиалы</p></div>` : `<div></div>`}
+        <div class="tile primary" onclick="downloadPdf()"><i class="ti ti-file-type-pdf" aria-hidden="true"></i><p>Скачать PDF</p></div>
       </div>
-      <div class="card" style="margin-top:14px">
-        <div class="row link" onclick="switchTab('day-report')"><span class="name"><i class="ti ti-chart-donut icon-badge"></i>Общий отчёт (сегодня)</span><i class="ti ti-chevron-right chevron"></i></div>
-        <div class="row link" onclick="openMonthReport()"><span class="name"><i class="ti ti-calendar-event icon-badge"></i>За месяц</span><i class="ti ti-chevron-right chevron"></i></div>
-        ${ME.is_owner ? `<div class="row link" onclick="openAllReport()"><span class="name"><i class="ti ti-building-store icon-badge"></i>Отчёт по всем филиалам</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
-        <div class="row link" onclick="downloadPdf()"><span class="name"><i class="ti ti-file-type-pdf icon-badge"></i>Скачать PDF (сегодня)</span><i class="ti ti-chevron-right chevron"></i></div>
+      <p class="section-label">Операции сегодня</p>
+      <div class="card card-pad">
+        ${today.session.cars.length ? `<div class="timeline">` + today.session.cars.slice().reverse().slice(0,8).map(c => `
+          <div class="timeline-item" onclick="uiCarQuick(${c.num})">
+            <div class="tdot"></div>
+            <p class="ttime">${c.time || ""}</p>
+            <p class="tname">${c.car || "Машина"} · ${fmt(c.price)}</p>
+          </div>`).join("") + `</div>` : `<p class="empty">Машин пока нет</p>`}
       </div>
+      <p class="stat-label" style="margin-top:6px">Неделя: ${fmt(week.grand_total)}</p>
       <p class="section-label">За неделю (${week.from} – ${week.to})</p>
       <div class="card">
         ${week.days.length ? week.days.map(d => `
@@ -613,19 +698,17 @@ async function renderWorkers(){
       </div>
       <p class="section-label">Сегодня · ${BRANCH}</p>
       <div class="card">
+        <div class="wtable-head"><span>Сотрудник</span><span style="text-align:center">Машин</span><span style="text-align:right">К выплате</span></div>
         ${workers.length ? workers.map(w => {
           const cnt = session.cars.filter(c => c.employee === w).length;
           const sal = summary.washer_salaries?.[w] || 0;
           return { w, cnt, sal };
-        }).sort((a,b) => b.sal - a.sal).map(({w, cnt, sal}) => {
-          const maxSal = Math.max(1, ...workers.map(x => summary.washer_salaries?.[x] || 0));
-          const pct = Math.max(4, Math.round((sal / maxSal) * 100));
-          return `<div class="worker-row">
-            <div class="top"><span class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</span><span class="price">${fmt(sal)}</span></div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-            <p class="meta">${cnt} машин</p>
-          </div>`;
-        }).join("") : `<p class="empty">Мойщиков пока нет — добавь в Настройках</p>`}
+        }).sort((a,b) => b.sal - a.sal).map(({w, cnt, sal}) => `
+          <div class="wtable-row" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')">
+            <span class="wname"><span class="dot" style="background:${cnt>0?'#33D17A':'var(--text-muted)'}"></span>${w}</span>
+            <span class="wcount">${cnt}</span>
+            <span class="wsal">${fmt(sal)}</span>
+          </div>`).join("") : `<p class="empty">Мойщиков пока нет — добавь в Настройках</p>`}
       </div>
     </div>`;
 }
@@ -646,17 +729,16 @@ async function renderSettings(){
     <div class="content">
       <p class="label">Только для админа · ${BRANCH}</p>
       <div class="card">
-        <div class="row link" onclick="uiAddWorker()"><span class="name"><i class="ti ti-user-plus icon-badge"></i>Добавить мойщика</span><i class="ti ti-chevron-right chevron"></i></div>
-        <div class="row link" onclick="uiRemoveWorker()"><span class="name"><i class="ti ti-user-minus icon-badge"></i>Удалить мойщика</span><i class="ti ti-chevron-right chevron"></i></div>
         <div class="row link" onclick="uiSetBranchAdmin()"><span class="name"><i class="ti ti-shield-star icon-badge"></i>Назначить админа филиала</span><i class="ti ti-chevron-right chevron"></i></div>
         ${ME.is_owner ? `
         <div class="row link" onclick="uiAddUser()"><span class="name"><i class="ti ti-lock-access icon-badge"></i>Добавить доступ пользователю</span><i class="ti ti-chevron-right chevron"></i></div>
         <div class="row link" onclick="uiRemoveUser()"><span class="name"><i class="ti ti-lock-open icon-badge"></i>Убрать доступ пользователя</span><i class="ti ti-chevron-right chevron"></i></div>
         <div class="row link" onclick="uiListUsers()"><span class="name"><i class="ti ti-users icon-badge"></i>Список пользователей</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
       </div>
-      <p class="section-label">Сотрудники (${workers.length})</p>
-      <div class="card">
-        ${workers.length ? workers.map(w => `<div class="row link" onclick="uiWorkerRow('${w.replace(/'/g,"\\'")}')"><p class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</p><i class="ti ti-chevron-right chevron"></i></div>`).join("") : `<p class="empty">Пока никого</p>`}
+      <p class="group-label">Сотрудники (${workers.length})</p>
+      <div class="tag-row">
+        ${workers.map(w => `<div class="tag" onclick="uiWorkerRow('${w.replace(/'/g,"\\'")}')"><span class="av" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span><span>${w}</span></div>`).join("")}
+        <div class="tag-add" onclick="uiAddWorker()"><i class="ti ti-plus" style="font-size:13px"></i>Добавить</div>
       </div>
       <p class="section-label">Филиал</p>
       <div class="card"><div class="row link" onclick="switchBranch()"><span class="name"><i class="ti ti-building-store icon-badge"></i>${BRANCH}</span><i class="ti ti-chevron-right chevron"></i></div></div>
