@@ -131,6 +131,12 @@ class LoyaltyIn(BaseModel):
     discount: int
 
 
+class ExpenseIn(BaseModel):
+    branch: str
+    name: str
+    amount: int
+
+
 class WorkerIn(BaseModel):
     branch: str
     name: str
@@ -387,6 +393,29 @@ def api_add_loyalty(body: LoyaltyIn):
     session = get_session(body.branch)
     session.setdefault("loyalty", []).append({"car_num": body.car_num, "discount": body.discount})
     save_sessions()
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
+@app.post("/api/expense")
+def api_add_expense(body: ExpenseIn, x_init_data: str = Header(default="")):
+    session = get_session(body.branch)
+    session.setdefault("expenses", []).append({"name": body.name, "amount": body.amount})
+    save_sessions()
+    log_action(body.branch, "expense_add", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{body.name} · -{body.amount}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
+@app.delete("/api/expense/{branch}/{idx}")
+def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default="")):
+    session = get_session(branch)
+    expenses = session.get("expenses", [])
+    if not (0 <= idx < len(expenses)):
+        raise HTTPException(404, "Расход не найден")
+    removed = expenses.pop(idx)
+    save_sessions()
+    log_action(branch, "expense_delete", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{removed['name']} · -{removed['amount']}₽")
     return {"ok": True, "summary": calculate_summary(session)}
 
 
