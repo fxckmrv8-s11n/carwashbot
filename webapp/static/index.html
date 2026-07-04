@@ -178,6 +178,10 @@ async function api(path, opts = {}) {
 function fmt(n){ return (n||0).toLocaleString("ru-RU") + " ₽"; }
 function haptic(type="light"){ try{ tg.HapticFeedback.impactOccurred(type); }catch(e){} }
 function initials(name){ return (name||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase(); }
+function paymentLabel(c){
+  if (c.payment_split) return Object.entries(c.payment_split).map(([k,v]) => `${k} ${v}₽`).join(" + ");
+  return c.payment;
+}
 const AVATAR_COLORS = ["#FF9F0A","#FF453A","#33D17A","#0A84FF","#BF5AF2","#64D2FF","#FFD60A"];
 function avatarColor(name){ let h=0; for(const c of (name||"")) h=(h*31+c.charCodeAt(0))>>>0; return AVATAR_COLORS[h%AVATAR_COLORS.length]; }
 
@@ -240,7 +244,7 @@ async function renderHome(){
       <div class="section-label">Последние машины<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
       <div class="card">
         ${session.cars.length ? session.cars.slice().reverse().slice(0,6).map(c => `
-          <div class="row"><div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${c.payment}</p></div>
+          <div class="row"><div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${paymentLabel(c)}</p></div>
           <p class="price">${fmt(c.price)}</p></div>`).join("") : `<p class="empty">Машин пока нет</p>`}
       </div>
       <button class="btn secondary" style="margin-top:16px;margin-bottom:8px" onclick="startNewDay()">Закрыть смену / новый день</button>
@@ -287,6 +291,11 @@ async function renderAdd(){
       <div class="field-select"><select id="f-emp">${workers.length ? workers.map(w => `<option>${w}</option>`).join("") : `<option value="">Нет сотрудников</option>`}</select></div>
       <p class="label">Способ оплаты</p>
       <div class="field-select"><select id="f-payment">${CFG.payment_types.map(p => `<option>${p}</option>`).join("")}</select></div>
+      <div class="chip-label" style="background:var(--surface-1);border-radius:14px;margin-bottom:12px" onclick="toggleSplitRow()">
+        <span class="l">Раздельная оплата</span>
+        <input type="checkbox" id="f-split-toggle" style="pointer-events:none">
+      </div>
+      <div id="f-split-wrap"></div>
       <p class="label">Комментарий</p>
       <textarea id="f-comment" placeholder="Комментарий (необязательно)"></textarea>
       <div class="card card-pad" style="display:flex;justify-content:space-between;align-items:baseline">
@@ -301,17 +310,20 @@ async function renderAdd(){
 function renderServiceChips(){
   const bodyType = document.getElementById("f-body").value;
   const wrap = document.getElementById("f-services");
-  wrap.innerHTML = CFG.services.map(s => {
+  wrap.innerHTML = CFG.services.map((s, i) => {
     const price = s.prices[bodyType] ?? Object.values(s.prices)[0];
     const checked = selectedServices.includes(s.key) ? "checked" : "";
-    return `<label class="chip-label"><span class="l">${s.name}</span><span class="r"><span class="p">${price}₽</span><input type="checkbox" ${checked} onchange="toggleService('${s.key}')"></span></label>`;
+    return `<div class="chip-label" data-key="${s.key}" onclick="toggleService('${s.key}')">
+      <span class="l">${s.name}</span>
+      <span class="r"><span class="p">${price}₽</span><input type="checkbox" ${checked} style="pointer-events:none"></span>
+    </div>`;
   }).join("");
   updateTotal();
 }
 window.toggleService = (key) => {
   haptic();
   selectedServices = selectedServices.includes(key) ? selectedServices.filter(k=>k!==key) : [...selectedServices, key];
-  updateTotal();
+  renderServiceChips();
 };
 window.addCustomService = () => {
   const name = window.prompt("Название услуги:");
@@ -331,6 +343,39 @@ function renderCustomList(){
   updateTotal();
 }
 window.removeCustom = (i) => { customServices.splice(i,1); renderCustomList(); };
+window.toggleSplitRow = () => {
+  const cb = document.getElementById("f-split-toggle");
+  cb.checked = !cb.checked;
+  haptic();
+  toggleSplit();
+};
+window.toggleSplit = () => {
+  const on = document.getElementById("f-split-toggle").checked;
+  document.getElementById("f-payment").disabled = on;
+  renderSplitInputs();
+};
+function renderSplitInputs(){
+  const wrap = document.getElementById("f-split-wrap");
+  const on = document.getElementById("f-split-toggle").checked;
+  if (!on) { wrap.innerHTML = ""; return; }
+  wrap.innerHTML = `
+    <div class="card card-pad">
+      ${CFG.payment_types.map(p => `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:14px">${p}</span>
+          <input type="number" inputmode="numeric" class="split-input" data-method="${p}" placeholder="0" style="width:110px;margin:0;text-align:right" oninput="updateTotal()">
+        </div>`).join("")}
+      <p class="sub" id="f-split-hint" style="margin:4px 0 0"></p>
+    </div>`;
+  updateTotal();
+}
+function getSplitValues(){
+  return [...document.querySelectorAll(".split-input")].reduce((acc, inp) => {
+    const v = parseInt(inp.value || "0", 10);
+    if (v) acc[inp.dataset.method] = v;
+    return acc;
+  }, {});
+}
 function updateTotal(){
   const bodyType = document.getElementById("f-body")?.value;
   let total = selectedServices.reduce((sum,k) => {
@@ -340,17 +385,35 @@ function updateTotal(){
   total += customServices.reduce((sum,c) => sum + c.price, 0);
   const totalEl = document.getElementById("f-total");
   if (totalEl) totalEl.textContent = fmt(total);
+  const splitToggle = document.getElementById("f-split-toggle");
+  const hint = document.getElementById("f-split-hint");
+  if (splitToggle?.checked && hint) {
+    const sum = Object.values(getSplitValues()).reduce((a,b)=>a+b,0);
+    const diff = total - sum;
+    hint.textContent = diff === 0 ? "Сумма сходится ✓" : `Осталось распределить: ${fmt(diff)}`;
+    hint.style.color = diff === 0 ? "var(--green)" : "var(--red)";
+  }
 }
 window.submitCar = async () => {
   if (!selectedServices.length && !customServices.length) return tg.showAlert("Выбери хотя бы одну услугу");
   const emp = document.getElementById("f-emp").value;
   if (!emp) return tg.showAlert("Сначала добавь сотрудника в настройках");
+  const isSplit = document.getElementById("f-split-toggle").checked;
+  let paymentSplit = null;
+  if (isSplit) {
+    paymentSplit = getSplitValues();
+    const total = parseInt((document.getElementById("f-total").textContent || "0").replace(/\D/g,""), 10);
+    const sum = Object.values(paymentSplit).reduce((a,b)=>a+b,0);
+    if (!Object.keys(paymentSplit).length) return tg.showAlert("Укажи суммы по способам оплаты");
+    if (sum !== total) return tg.showAlert(`Сумма раздельной оплаты (${sum}₽) не совпадает со стоимостью (${total}₽)`);
+  }
   const body = {
     branch: BRANCH, employee: emp,
     body_type: document.getElementById("f-body").value,
     service_keys: selectedServices, custom_services: customServices,
     car: document.getElementById("f-car").value,
-    payment: document.getElementById("f-payment").value,
+    payment: isSplit ? "Раздельно" : document.getElementById("f-payment").value,
+    payment_split: paymentSplit,
     comment: document.getElementById("f-comment").value,
   };
   await api("/api/car", { method: "POST", body: JSON.stringify(body) });
@@ -447,7 +510,7 @@ async function renderAllCars(){
     <div class="content">
       <div class="card">
         ${session.cars.length ? session.cars.slice().reverse().map(c => `
-          <div class="row"><div><p class="name">${(c.time?c.time+" · ":"")}${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${c.payment}</p></div>
+          <div class="row"><div><p class="name">${(c.time?c.time+" · ":"")}${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${paymentLabel(c)}</p></div>
           <div class="meta"><p class="price">${fmt(c.price)}</p><span class="del" onclick="delCar(${c.num})">Удалить</span></div></div>`).join("")
           : `<p class="empty">Машин пока нет</p>`}
       </div>
