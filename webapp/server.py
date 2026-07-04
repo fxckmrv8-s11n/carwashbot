@@ -12,6 +12,7 @@ Backend Mini App для CarWash-бота.
 """
 import sys, os, hashlib, hmac, json, tempfile
 from datetime import datetime, timedelta
+from typing import Optional, Dict
 from urllib.parse import parse_qsl
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -101,7 +102,7 @@ class CarIn(BaseModel):
     custom_services: list[dict] = []       # [{"name","price","percent"}]
     car: str = ""
     payment: str
-    payment_split: dict[str, int] | None = None   # {"нал": 800, "безнал": 1200}
+    payment_split: Optional[Dict[str, int]] = None   # {"нал": 800, "безнал": 1200}
     comment: str = ""
 
 
