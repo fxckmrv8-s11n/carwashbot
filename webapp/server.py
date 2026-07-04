@@ -101,6 +101,7 @@ class CarIn(BaseModel):
     custom_services: list[dict] = []       # [{"name","price","percent"}]
     car: str = ""
     payment: str
+    payment_split: dict[str, int] | None = None   # {"нал": 800, "безнал": 1200}
     comment: str = ""
 
 
@@ -236,6 +237,12 @@ def api_add_car(body: CarIn):
     if not breakdown:
         raise HTTPException(400, "Нужна хотя бы одна услуга")
 
+    total_price = sum(v["price"] for v in breakdown.values())
+    if body.payment_split:
+        split_sum = sum(body.payment_split.values())
+        if split_sum != total_price:
+            raise HTTPException(400, f"Сумма раздельной оплаты ({split_sum}₽) не совпадает со стоимостью ({total_price}₽)")
+
     num = len(session["cars"]) + 1
     car = {
         "num": num,
@@ -245,9 +252,10 @@ def api_add_car(body: CarIn):
         "custom_services": body.custom_services,
         "price_breakdown": breakdown,
         "service": " + ".join(v["name"] for v in breakdown.values()),
-        "price": sum(v["price"] for v in breakdown.values()),
+        "price": total_price,
         "car": body.car,
         "payment": body.payment,
+        "payment_split": body.payment_split,
         "comment": body.comment,
         "time": datetime.now().strftime("%H:%M"),
     }
