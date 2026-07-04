@@ -90,11 +90,14 @@
   .field-select select{padding-right:36px}
   .field-select::after{content:"";position:absolute;right:14px;top:50%;transform:translateY(-60%) rotate(45deg);width:7px;height:7px;border-right:1.5px solid var(--text-muted);border-bottom:1.5px solid var(--text-muted);pointer-events:none}
 
-  .chip-label{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer}
+  .chip-label{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer;transition:background .12s}
   .chip-label + .chip-label{border-top:0.5px solid var(--border)}
+  .chip-label.active{background:var(--surface-2)}
   .chip-label .l{font-size:14px}
   .chip-label .r{display:flex;align-items:center;gap:10px}
   .chip-label .p{font-size:13px;color:var(--text-secondary)}
+  .tick{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;flex-shrink:0}
+  .tick.on{background:var(--accent);border-color:var(--accent);color:var(--bg)}
   input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:#fff}
 
   .del{color:var(--red);font-size:12px;font-weight:500}
@@ -312,10 +315,10 @@ function renderServiceChips(){
   const wrap = document.getElementById("f-services");
   wrap.innerHTML = CFG.services.map((s, i) => {
     const price = s.prices[bodyType] ?? Object.values(s.prices)[0];
-    const checked = selectedServices.includes(s.key) ? "checked" : "";
-    return `<div class="chip-label" data-key="${s.key}" onclick="toggleService('${s.key}')">
+    const active = selectedServices.includes(s.key);
+    return `<div class="chip-label ${active ? 'active' : ''}" data-key="${s.key}" onclick="toggleService('${s.key}')">
       <span class="l">${s.name}</span>
-      <span class="r"><span class="p">${price}₽</span><input type="checkbox" ${checked} style="pointer-events:none"></span>
+      <span class="r"><span class="p">${price}₽</span><span class="tick ${active ? 'on' : ''}">✓</span></span>
     </div>`;
   }).join("");
   updateTotal();
