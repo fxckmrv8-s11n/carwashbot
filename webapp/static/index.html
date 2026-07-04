@@ -278,7 +278,7 @@ async function renderHome(){
     `<span class="pill" style="${trendPct < 0 ? 'background:rgba(255,69,58,0.15);color:var(--red)' : ''}">${trendPct >= 0 ? '+' : ''}${trendPct}%</span>`;
 
   const avatars = workers.slice(0, 4).map(w =>
-    `<div class="av"><div class="circle">${initials(w)}</div><p>${w}</p></div>`).join("");
+    `<div class="av" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')"><div class="circle" style="cursor:pointer">${initials(w)}</div><p>${w}</p></div>`).join("");
   const moreAvatar = workers.length > 4
     ? `<div class="av"><div class="circle more" onclick="switchTab('workers')"><i class="ti ti-dots"></i></div><p>Ещё</p></div>`
     : `<div class="av"><div class="circle more" onclick="uiAddWorker()"><i class="ti ti-plus"></i></div><p>Ещё</p></div>`;
@@ -308,12 +308,26 @@ async function renderHome(){
       <div class="section-label">Последние машины<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
       <div class="card">
         ${session.cars.length ? session.cars.slice().reverse().slice(0,6).map(c => `
-          <div class="row"><div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${paymentLabel(c)}</p></div>
+          <div class="row link" onclick="uiCarQuick(${c.num})"><div><p class="name">${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${paymentLabel(c)}</p></div>
           <p class="price">${fmt(c.price)}</p></div>`).join("") : `<p class="empty">Машин пока нет</p>`}
       </div>
       <button class="btn secondary" style="margin-top:16px;margin-bottom:28px" onclick="startNewDay()">Закрыть смену / новый день</button>
     </div>`;
 }
+window.uiWorkerQuick = async (name) => {
+  const { summary, session } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  const cnt = session.cars.filter(c => c.employee === name).length;
+  const sal = summary.washer_salaries?.[name] || 0;
+  tg.showAlert(`${name}\n${cnt} машин сегодня\nК выплате: ${fmt(sal)}`);
+};
+window.uiCarQuick = (num) => {
+  tg.showConfirm("Удалить эту машину?", async (ok) => {
+    if (!ok) return;
+    haptic("medium");
+    await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}`, { method: "DELETE" });
+    renderHome();
+  });
+};
 window.startNewDay = async () => {
   tg.showConfirm("Закрыть смену и начать новый день? Текущая касса уйдёт в архив.", async (ok) => {
     if (!ok) return;
@@ -642,13 +656,35 @@ async function renderSettings(){
       </div>
       <p class="section-label">Сотрудники (${workers.length})</p>
       <div class="card">
-        ${workers.length ? workers.map(w => `<div class="row"><p class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</p><i class="ti ti-chevron-right chevron"></i></div>`).join("") : `<p class="empty">Пока никого</p>`}
+        ${workers.length ? workers.map(w => `<div class="row link" onclick="uiWorkerRow('${w.replace(/'/g,"\\'")}')"><p class="name"><span class="avatar" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</p><i class="ti ti-chevron-right chevron"></i></div>`).join("") : `<p class="empty">Пока никого</p>`}
       </div>
       <p class="section-label">Филиал</p>
-      <div class="card"><div class="row"><span class="name"><i class="ti ti-building-store icon-badge"></i>${BRANCH}</span></div></div>
+      <div class="card"><div class="row link" onclick="switchBranch()"><span class="name"><i class="ti ti-building-store icon-badge"></i>${BRANCH}</span><i class="ti ti-chevron-right chevron"></i></div></div>
       <button class="btn secondary" style="margin-top:16px;margin-bottom:24px" onclick="switchBranch()">Сменить филиал</button>
     </div>`;
 }
+window.uiWorkerRow = (name) => {
+  tg.showPopup({
+    title: name,
+    message: "Что сделать с сотрудником?",
+    buttons: [
+      { id: "admin", type: "default", text: "Назначить админом филиала" },
+      { id: "remove", type: "destructive", text: "Удалить" },
+      { id: "cancel", type: "cancel" },
+    ],
+  }, async (id) => {
+    if (id === "remove") {
+      try { await api(`/api/workers/${encodeURIComponent(BRANCH)}/${encodeURIComponent(name)}`, { method: "DELETE" }); haptic("medium"); renderSettings(); }
+      catch(e){}
+    } else if (id === "admin") {
+      const idStr = window.prompt(`Telegram ID для ${name} как админа филиала:`);
+      const uid = parseInt(idStr || "", 10);
+      if (!uid) return;
+      try { await api("/api/branch-admin", { method: "POST", body: JSON.stringify({ branch: BRANCH, user_id: uid }) }); haptic("medium"); tg.showAlert("Админ назначен"); }
+      catch(e){}
+    }
+  });
+};
 window.switchBranch = () => { BRANCH = null; ME = null; switchTab("home"); };
 window.uiAddWorker = async () => {
   const name = window.prompt("Имя мойщика:");
