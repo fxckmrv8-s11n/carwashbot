@@ -515,6 +515,15 @@ async function renderHome(){
       </div>
       <div class="section-label">Машины сегодня<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
       <div id="home-swipe-wrap"></div>
+      <div class="section-label">Расходы<span class="more" style="color:var(--red)">-${fmt(summary.total_expenses || 0)}</span></div>
+      <div class="card">
+        ${(session.expenses || []).length ? session.expenses.map((e, i) => `
+          <div class="row"><span class="name">${e.name}</span>
+          <span style="display:flex;align-items:center;gap:10px"><span class="price" style="color:var(--red)">-${fmt(e.amount)}</span>
+          <span class="del" onclick="delExpense(${i})">Удалить</span></span></div>`).join("")
+          : `<p class="empty">Расходов пока нет</p>`}
+      </div>
+      <button class="btn secondary" style="margin-top:10px" onclick="uiAddExpense()">+ Добавить расход</button>
       <button class="btn secondary" style="margin-top:16px;margin-bottom:28px" onclick="startNewDay()">Закрыть смену / новый день</button>
     </div>`;
   HOME_CARS = session.cars.slice().reverse();
@@ -570,6 +579,24 @@ window.uiCarQuick = (num) => {
     HOME_IDX = Math.max(0, HOME_IDX - 1);
     const activeTab = document.querySelector(".tab.active")?.dataset.tab || "home";
     switchTab(activeTab);
+  });
+};
+window.uiAddExpense = () => {
+  const name = window.prompt("Название расхода:");
+  if (!name) return;
+  const amountStr = window.prompt("Сумма (₽):", "500");
+  const amount = parseInt((amountStr || "").replace(/[^\d]/g, ""), 10);
+  if (!amount) return tg.showAlert("Введи корректную сумму");
+  api("/api/expense", { method: "POST", body: JSON.stringify({ branch: BRANCH, name, amount }) })
+    .then(() => { haptic("medium"); renderHome(); })
+    .catch(() => {});
+};
+window.delExpense = (idx) => {
+  tg.showConfirm("Удалить расход?", async (ok) => {
+    if (!ok) return;
+    haptic("medium");
+    await api(`/api/expense/${encodeURIComponent(BRANCH)}/${idx}`, { method: "DELETE" });
+    renderHome();
   });
 };
 window.startNewDay = async () => {
