@@ -8,38 +8,32 @@ import os, sys
 
 def _register_fonts():
     """Регистрируем шрифты с поддержкой кириллицы для Windows/Linux/Mac."""
-    # Шрифты, идущие вместе с проектом (приоритет №1 — не зависят от ОС сервера)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    bundled_dir = os.path.join(base_dir, "fonts")
+    # Пути к шрифтам на разных системах
     candidates = {
-        "Times": [
-            os.path.join(bundled_dir, "DejaVuSerif.ttf"),
-        ],
-        "Times-Bold": [
-            os.path.join(bundled_dir, "DejaVuSerif-Bold.ttf"),
-        ],
+        "Times": [],
+        "Times-Bold": [],
     }
 
     if sys.platform == "win32":
         winfonts = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "Fonts")
-        candidates["Times"]      += [
+        candidates["Times"]      = [
             os.path.join(winfonts, "times.ttf"),
             os.path.join(winfonts, "arial.ttf"),
         ]
-        candidates["Times-Bold"] += [
+        candidates["Times-Bold"] = [
             os.path.join(winfonts, "timesbd.ttf"),
             os.path.join(winfonts, "arialbd.ttf"),
         ]
     elif sys.platform == "darwin":  # macOS
-        candidates["Times"]      += ["/Library/Fonts/Times New Roman.ttf"]
-        candidates["Times-Bold"] += ["/Library/Fonts/Times New Roman Bold.ttf"]
+        candidates["Times"]      = ["/Library/Fonts/Times New Roman.ttf"]
+        candidates["Times-Bold"] = ["/Library/Fonts/Times New Roman Bold.ttf"]
     else:  # Linux
-        candidates["Times"]      += [
+        candidates["Times"]      = [
             "/usr/share/fonts/truetype/freefont/FreeSerif.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
         ]
-        candidates["Times-Bold"] += [
+        candidates["Times-Bold"] = [
             "/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
@@ -55,8 +49,10 @@ def _register_fonts():
         if not registered:
             # Фолбэк: встроенный шрифт ReportLab (без кириллицы, но не упадёт)
             fallback = "Helvetica-Bold" if "Bold" in font_name else "Helvetica"
+            pdfmetrics.registerFont(TTFont.__new__(TTFont))
+            # Просто маппим имя на встроенный шрифт через подмену
             import reportlab.pdfbase.pdfmetrics as _m
-            _m._fonts[font_name] = _m.getFont(fallback)
+            _m._fonts[font_name] = _m._fonts.get(fallback, _m._fonts.get("Helvetica"))
 
 _register_fonts()
 
@@ -340,17 +336,26 @@ def draw_car_row(c, y_top, num, car, shade=False):
     else:
         service_label = car.get("service", "")
 
+    payment_split = car.get("payment_split")
+    if payment_split:
+        payment_label = " / ".join(f"{k} {v}" for k, v in payment_split.items())
+        payment_size = 7
+    else:
+        payment_label = car.get("payment", "")
+        payment_size = FS
+
     values = [
         (str(num),                    "center"),
         (car.get("car", ""),          "left"),
         (service_label,               "center"),
         (f"{car.get('price','')} ₽",  "center"),
-        (car.get("payment", ""),      "center"),
+        (payment_label,               "center"),
     ]
+    sizes = [FS, FS, FS, FS, payment_size]
     cx = x
-    for (val, aln), w in zip(values, ws):
+    for (val, aln), w, sz in zip(values, ws, sizes):
         rect(c, cx, y_top, w, h)
-        text_in(c, cx, y_top, w, h, val, align=aln, size=FS)
+        text_in(c, cx, y_top, w, h, val, align=aln, size=sz)
         cx += w
 
     return y_top - h
