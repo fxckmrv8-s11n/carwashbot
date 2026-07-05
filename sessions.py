@@ -310,6 +310,70 @@ def remove_branch_worker(branch: str, name: str) -> bool:
     return result["removed"]
 
 
+# ── ГРАФИК РАБОТЫ МОЙЩИКОВ (например 3/1 — 3 дня работает, 1 отдыхает) ──────
+
+def set_worker_schedule(branch: str, name: str, work_days: int, rest_days: int, start_date: str):
+    """start_date в формате YYYY-MM-DD — точка отсчёта цикла."""
+    def _update(data):
+        data.setdefault(branch, {"admin": 0, "workers": []})
+        schedules = data[branch].setdefault("schedules", {})
+        schedules[name] = {"work": work_days, "rest": rest_days, "start": start_date}
+        return data
+
+    global _branches_cache
+    _branches_cache = _update_json_locked(BRANCHES_FILE, _update)
+
+
+def clear_worker_schedule(branch: str, name: str) -> bool:
+    result = {"removed": False}
+
+    def _update(data):
+        data.setdefault(branch, {"admin": 0, "workers": []})
+        schedules = data[branch].setdefault("schedules", {})
+        if name in schedules:
+            del schedules[name]
+            result["removed"] = True
+        return data
+
+    global _branches_cache
+    _branches_cache = _update_json_locked(BRANCHES_FILE, _update)
+    return result["removed"]
+
+
+def get_worker_schedule(branch: str, name: str) -> dict | None:
+    return get_branch_config(branch).get("schedules", {}).get(name)
+
+
+def is_working_on(branch: str, name: str, on_date=None) -> bool:
+    """Работает ли мойщик в указанный день согласно графику.
+    Если график не задан — считаем, что мойщик доступен всегда (True)."""
+    from datetime import date as _date
+    sched = get_worker_schedule(branch, name)
+    if not sched:
+        return True
+    try:
+        start = _date.fromisoformat(sched["start"])
+    except (ValueError, KeyError):
+        return True
+    on_date = on_date or _date.today()
+    cycle = sched["work"] + sched["rest"]
+    if cycle <= 0:
+        return True
+    days_passed = (on_date - start).days
+    if days_passed < 0:
+        return True  # график ещё не начался — не ограничиваем
+    return (days_passed % cycle) < sched["work"]
+
+
+def get_schedule_status(branch: str) -> dict:
+    """{worker: {'working': bool, 'schedule': {...} | None}} на сегодня."""
+    workers = get_branch_workers(branch)
+    return {
+        w: {"working": is_working_on(branch, w), "schedule": get_worker_schedule(branch, w)}
+        for w in workers
+    }
+
+
 # ── ПОЛЬЗОВАТЕЛИ (белый список) ─────────────────────────────────────────────
 
 def load_users() -> dict:
