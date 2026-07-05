@@ -225,6 +225,37 @@ def api_clear_schedule(branch: str, name: str, x_init_data: str = Header(default
     return {"ok": True, "schedule": get_schedule_status(branch)}
 
 
+@app.get("/api/schedule/week")
+def api_schedule_week(branch: str, monday: str = ""):
+    """График Пн–Пт для всех мойщиков филиала.
+    monday — дата понедельника (YYYY-MM-DD); по умолчанию — понедельник текущей недели."""
+    from datetime import date as _date, timedelta as _timedelta
+    if monday:
+        try:
+            start = _date.fromisoformat(monday)
+        except ValueError:
+            raise HTTPException(400, "Некорректная дата")
+    else:
+        today = _date.today()
+        start = today - _timedelta(days=today.weekday())
+
+    days = [start + _timedelta(days=i) for i in range(5)]  # Пн..Пт
+    day_labels = [d.strftime("%d.%m") for d in days]
+    weekdays_ru = ["Пн", "Вт", "Ср", "Чт", "Пт"]
+
+    workers = get_branch_workers(branch)
+    rows = {}
+    for w in workers:
+        rows[w] = [is_working_on(branch, w, d) for d in days]
+
+    return {
+        "monday": start.isoformat(),
+        "day_labels": day_labels,
+        "weekday_labels": weekdays_ru,
+        "workers": rows,
+    }
+
+
 @app.get("/api/me")
 def api_me(branch: str = "", x_init_data: str = Header(default="")):
     user = auth_optional(x_init_data)
