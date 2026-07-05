@@ -1,12 +1,24 @@
 from config import SALARY_ADMIN, get_blended_percent
 
 def round_salary(amount: float) -> int:
-    base = int(amount // 50) * 50
-    rem  = int(amount % 50)
-    if rem <= 25:   return base
-    if rem <= 50:   return base + 50
-    if rem <= 80:   return base + 50
-    return base + 100
+    """
+    Округление по последним двум цифрам суммы:
+      0–30  → вниз до XX00   (1830 → 1800)
+      31–50 → вверх до XX50  (1831 → 1850)
+      51–70 → вниз до XX50   (1861 → 1850)
+      71–99 → вверх до (XX+1)00 (1871 → 1900)
+    """
+    amount = int(round(amount))
+    base = (amount // 100) * 100
+    rem = amount % 100
+    if rem <= 30:
+        return base
+    elif rem <= 50:
+        return base + 50
+    elif rem <= 70:
+        return base + 50
+    else:
+        return base + 100
 
 def calculate_summary(session: dict) -> dict:
     cars     = session.get("cars", [])
@@ -77,7 +89,6 @@ def calculate_summary(session: dict) -> dict:
     washer_salaries = {}
     for car in cars:
         emp      = car["employee"]
-        loy      = loyalty_by_car.get(car["num"], 0)
         # Зарплата — от полной суммы (car["price"] уже полная, до вычета скидки)
         full_sum = car["price"]
         washer_totals[emp] = washer_totals.get(emp, 0) + full_sum
@@ -85,8 +96,6 @@ def calculate_summary(session: dict) -> dict:
         breakdown = car.get("price_breakdown")
         if breakdown:
             salary_part = sum(v["price"] * v["percent"] for v in breakdown.values())
-            avg_pct     = sum(v["percent"] for v in breakdown.values()) / len(breakdown)
-            salary_part += loy * avg_pct
         else:
             pct         = get_blended_percent(car.get("service_keys") or [car.get("service_key", "")])
             salary_part = full_sum * pct
