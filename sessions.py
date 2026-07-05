@@ -360,8 +360,9 @@ def is_working_on(branch: str, name: str, on_date=None) -> bool:
     if cycle <= 0:
         return True
     days_passed = (on_date - start).days
-    if days_passed < 0:
-        return True  # график ещё не начался — не ограничиваем
+    # % в Python корректно работает и для отрицательных чисел (цикл продолжается
+    # «назад» по времени так же регулярно, как и вперёд) — это и нужно для
+    # отображения недели, в которую может попадать дата раньше start_date.
     return (days_passed % cycle) < sched["work"]
 
 
