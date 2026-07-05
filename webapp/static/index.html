@@ -431,6 +431,7 @@ function switchTab(name, editNum){
   if (name === "reports") renderReports();
   if (name === "workers") renderWorkers();
   if (name === "settings") renderSettings();
+  if (name === "schedule") renderScheduleWeek();
 }
 function skeleton(n=3){ return `<div class="content">` + Array(n).fill('<div class="skeleton"></div>').join("") + `</div>`; }
 async function ensureMe(){ ME = ME || await api(`/api/me?branch=${encodeURIComponent(BRANCH||"")}`); return ME; }
@@ -1070,7 +1071,8 @@ async function renderWorkers(){
   el.innerHTML = `
     <div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>
     <div class="content">
-      <div class="stat-grid">
+      <button class="btn secondary" onclick="switchTab('schedule')" style="margin-top:0;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-calendar-week"></i>График на неделю</button>
+      <div class="stat-grid" style="margin-top:12px">
         <div class="stat-card"><p>К выплате сегодня</p><p>${fmt(totalSalary)}</p></div>
         <div class="stat-card"><p>Мойщиков</p><p>${workers.length}</p></div>
       </div>
@@ -1093,7 +1095,35 @@ async function renderWorkers(){
   attachPullToRefresh("view-workers", renderWorkers);
 }
 
-// ── НАСТРОЙКИ ────────────────────────────────────────────────────────────
+// ── ГРАФИК НА НЕДЕЛЮ (Пн–Пт) ────────────────────────────────────────────
+async function renderScheduleWeek(){
+  const el = document.getElementById("view-schedule");
+  if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
+  el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('workers')"><i class="ti ti-chevron-left"></i></div><span>График на неделю</span></div>${skeleton(3)}`;
+  const data = await api(`/api/schedule/week?branch=${encodeURIComponent(BRANCH)}`);
+  const workers = Object.keys(data.workers);
+  el.innerHTML = `
+    <div class="back-header"><div class="back" onclick="switchTab('workers')"><i class="ti ti-chevron-left"></i></div><span>График на неделю</span></div>
+    <div class="content">
+      <p class="section-label">${BRANCH} · Пн ${data.day_labels[0]} — Пт ${data.day_labels[4]}</p>
+      <div class="card" style="padding:14px">
+        ${!workers.length ? `<p class="empty">Мойщиков пока нет</p>` : `
+        <div style="display:grid;grid-template-columns:1fr repeat(5,32px);gap:4px;align-items:center;margin-bottom:10px">
+          <span></span>
+          ${data.weekday_labels.map((d,i) => `<span style="text-align:center;font-size:11px;color:var(--text-muted)">${d}<br><span style="font-size:9px">${data.day_labels[i]}</span></span>`).join("")}
+        </div>
+        ${workers.map(w => `
+          <div style="display:grid;grid-template-columns:1fr repeat(5,32px);gap:4px;align-items:center;padding:8px 0;border-top:0.5px solid var(--border)">
+            <span style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</span>
+            ${data.workers[w].map(working => `<div style="width:24px;height:24px;border-radius:8px;margin:0 auto;background:${working?'var(--accent)':'var(--surface-2)'};display:flex;align-items:center;justify-content:center">${working?'<i class="ti ti-check" style="font-size:13px;color:#fff"></i>':''}</div>`).join("")}
+          </div>`).join("")}
+        `}
+      </div>
+      <p class="label" style="margin-top:10px">Синим — рабочие дни по графику. Без графика — мойщик доступен всегда.</p>
+    </div>`;
+}
+
+
 async function renderSettings(){
   const el = document.getElementById("view-settings");
   if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
@@ -1223,7 +1253,7 @@ window.uiListUsers = async () => {
 };
 
 // доп. подэкраны (не в таббаре)
-document.getElementById("view-home").insertAdjacentHTML("afterend", `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div>`);
+document.getElementById("view-home").insertAdjacentHTML("afterend", `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div>`);
 const _switchTab = switchTab;
 switchTab = function(name, editNum){
   if (name === "day-report") {
