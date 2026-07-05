@@ -32,6 +32,8 @@ from sessions import (
     get_branch_workers, get_branch_admin, is_branch_admin, set_branch_admin,
     add_branch_worker, remove_branch_worker,
     load_archive, load_users, save_users, add_user, remove_user,
+    set_worker_schedule, clear_worker_schedule, get_worker_schedule,
+    get_schedule_status, is_working_on,
 )
 from calculator import calculate_summary
 from pdf_generator import generate_pdf
@@ -143,6 +145,14 @@ class WorkerIn(BaseModel):
     x_init_data: str = ""
 
 
+class ScheduleIn(BaseModel):
+    branch: str
+    name: str
+    work_days: int
+    rest_days: int
+    start_date: str  # YYYY-MM-DD
+
+
 class BranchAdminIn(BaseModel):
     branch: str
     user_id: int
@@ -190,7 +200,29 @@ def api_config():
 
 @app.get("/api/workers")
 def api_workers(branch: str):
-    return {"workers": get_branch_workers(branch), "admin_id": get_branch_admin(branch)}
+    return {
+        "workers": get_branch_workers(branch),
+        "admin_id": get_branch_admin(branch),
+        "schedule": get_schedule_status(branch),
+    }
+
+
+@app.post("/api/schedule")
+def api_set_schedule(body: ScheduleIn, x_init_data: str = Header(default="")):
+    require_branch_admin(body.branch, x_init_data)
+    if body.name not in get_branch_workers(body.branch):
+        raise HTTPException(404, "Сотрудник не найден")
+    if body.work_days <= 0 or body.rest_days < 0:
+        raise HTTPException(400, "Некорректный график")
+    set_worker_schedule(body.branch, body.name, body.work_days, body.rest_days, body.start_date)
+    return {"ok": True, "schedule": get_schedule_status(body.branch)}
+
+
+@app.delete("/api/schedule/{branch}/{name}")
+def api_clear_schedule(branch: str, name: str, x_init_data: str = Header(default="")):
+    require_branch_admin(branch, x_init_data)
+    clear_worker_schedule(branch, name)
+    return {"ok": True, "schedule": get_schedule_status(branch)}
 
 
 @app.get("/api/me")
