@@ -456,7 +456,7 @@ async function renderHome(){
   const el = document.getElementById("view-home");
   el.innerHTML = `<div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div><div class="bell"><i class="ti ti-bell"></i></div></div>${skeleton(3)}`;
   const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
-  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const { workers, schedule } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
   const week = await api(`/api/reports/week?branch=${encodeURIComponent(BRANCH)}`).catch(() => ({ grand_total: 0, days: [] }));
   const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
 
@@ -485,8 +485,11 @@ async function renderHome(){
   const trendPill = trendPct === null ? "" :
     `<span class="pill" style="${trendPct < 0 ? 'background:rgba(255,69,58,0.15);color:var(--red)' : ''}">${trendPct >= 0 ? '+' : ''}${trendPct}%</span>`;
 
-  const avatars = workers.slice(0, 4).map(w =>
-    `<div class="av" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')"><div class="circle" style="cursor:pointer">${initials(w)}</div><p>${w}</p></div>`).join("");
+  const avatars = workers.slice(0, 4).map(w => {
+    const working = schedule?.[w]?.working !== false;
+    return `<div class="av" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')" style="${working?'':'opacity:0.4'}">
+      <div class="circle" style="cursor:pointer">${initials(w)}</div><p>${w}${working?'':' 🌙'}</p></div>`;
+  }).join("");
   const moreAvatar = workers.length > 4
     ? `<div class="av"><div class="circle more" onclick="switchTab('workers')"><i class="ti ti-dots"></i></div><p>Ещё</p></div>`
     : `<div class="av"><div class="circle more" onclick="uiAddWorker()"><i class="ti ti-plus"></i></div><p>Ещё</p></div>`;
@@ -625,7 +628,7 @@ async function renderAdd(editNum){
   const el = document.getElementById("view-add");
   if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
   CFG = CFG || await api("/api/config");
-  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const { workers, schedule } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
   const { presets } = await api(`/api/presets?branch=${encodeURIComponent(BRANCH)}`).catch(() => ({ presets: [] }));
 
   EDIT_CAR_NUM = editNum || null;
@@ -657,7 +660,13 @@ async function renderAdd(editNum){
       <div id="f-custom"></div>
       ${!EDIT_CAR_NUM ? `<button class="btn ghost" style="margin-top:8px" onclick="uiSavePreset()"><i class="ti ti-bookmark-plus"></i> Сохранить как пресет</button>` : ""}
       <p class="label" style="margin-top:12px">Мойщик</p>
-      <div class="field-select"><select id="f-emp">${workers.length ? workers.map(w => `<option ${editCar?.employee===w?'selected':''}>${w}</option>`).join("") : `<option value="">Нет сотрудников</option>`}</select></div>
+      <div class="field-select"><select id="f-emp">${workers.length ? workers.slice().sort((a,b) => {
+        const wa = schedule?.[a]?.working !== false, wb = schedule?.[b]?.working !== false;
+        return (wb - wa);
+      }).map(w => {
+        const working = schedule?.[w]?.working !== false;
+        return `<option value="${w}" ${editCar?.employee===w?'selected':''}>${w}${working?'':' (отдыхает)'}</option>`;
+      }).join("") : `<option value="">Нет сотрудников</option>`}</select></div>
       <p class="label">Способ оплаты</p>
       <div class="field-select"><select id="f-payment" ${editCar?.payment_split ? 'disabled' : ''}>${CFG.payment_types.map(p => `<option ${editCar?.payment===p?'selected':''}>${p}</option>`).join("")}</select></div>
       <div class="chip-label" style="background:var(--surface-1);border-radius:14px;margin-bottom:12px" onclick="toggleSplitRow()">
@@ -1115,6 +1124,7 @@ window.uiWorkerRow = (name) => {
     title: name,
     message: "Что сделать с сотрудником?",
     buttons: [
+      { id: "schedule", type: "default", text: "График работы" },
       { id: "admin", type: "default", text: "Назначить админом филиала" },
       { id: "remove", type: "destructive", text: "Удалить" },
       { id: "cancel", type: "cancel" },
@@ -1129,8 +1139,27 @@ window.uiWorkerRow = (name) => {
       if (!uid) return;
       try { await api("/api/branch-admin", { method: "POST", body: JSON.stringify({ branch: BRANCH, user_id: uid }) }); haptic("medium"); tg.showAlert("Админ назначен"); }
       catch(e){}
+    } else if (id === "schedule") {
+      uiSetSchedule(name);
     }
   });
+};
+window.uiSetSchedule = (name) => {
+  const pattern = window.prompt(`График для ${name}\nНапример "3/1" — 3 дня работает, 1 отдыхает.\nОставь пустым, чтобы убрать график (доступен всегда).`, "3/1");
+  if (pattern === null) return;
+  if (pattern.trim() === "") {
+    api(`/api/schedule/${encodeURIComponent(BRANCH)}/${encodeURIComponent(name)}`, { method: "DELETE" })
+      .then(() => { haptic("medium"); tg.showAlert("График сброшен"); renderSettings(); }).catch(() => {});
+    return;
+  }
+  const m = pattern.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (!m) return tg.showAlert('Формат: "3/1" (работает/отдыхает)');
+  const work_days = parseInt(m[1], 10), rest_days = parseInt(m[2], 10);
+  const startStr = window.prompt("С какой даты считать (ГГГГ-ММ-ДД)?", new Date().toISOString().slice(0, 10));
+  if (!startStr) return;
+  api("/api/schedule", { method: "POST", body: JSON.stringify({ branch: BRANCH, name, work_days, rest_days, start_date: startStr }) })
+    .then(() => { haptic("medium"); tg.showAlert(`График ${work_days}/${rest_days} установлен`); renderSettings(); })
+    .catch(() => {});
 };
 window.switchBranch = () => { BRANCH = null; ME = null; switchTab("home"); };
 window.uiAddWorker = async () => {
