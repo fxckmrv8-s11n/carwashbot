@@ -18,7 +18,7 @@
   :root{
     --bg:#000000; --surface-0:#141414; --surface-1:#1C1C1E; --surface-2:#242426;
     --text:#FFFFFF; --text-secondary:#9A9A9E; --text-muted:#6C6C70;
-    --border:rgba(255,255,255,0.08); --accent:#FFFFFF; --green:#33D17A; --red:#FF453A;
+    --border:rgba(255,255,255,0.08); --accent:#0A84FF; --accent-tint:rgba(10,132,255,0.16); --green:#33D17A; --red:#FF453A;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{height:100%}
@@ -82,7 +82,7 @@
   .row.link{cursor:pointer}
   .row.link:active{background:var(--surface-2)}
   .row .chevron{color:var(--text-muted);font-size:16px}
-  .row .icon-badge{width:20px;text-align:center;color:var(--text-secondary)}
+  .row .icon-badge{width:26px;height:26px;border-radius:8px;background:var(--accent-tint);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:14px;margin-right:8px;vertical-align:-7px}
 
   .stat2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
   .stat2 .box{background:var(--surface-1);border-radius:16px;padding:12px 14px}
@@ -91,7 +91,7 @@
 
   .quick3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
   .quick3 .box{background:var(--surface-1);border-radius:16px;padding:14px 6px;text-align:center;cursor:pointer}
-  .quick3 .box i{font-size:20px;margin-bottom:6px;display:block}
+  .quick3 .box i{font-size:18px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--accent-tint);color:var(--accent);margin-left:auto;margin-right:auto}
   .quick3 .box span{font-size:11px;color:var(--text-secondary)}
 
   .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
@@ -109,7 +109,7 @@
   .worker-row .meta{font-size:11px;color:var(--text-muted);margin:5px 0 0 36px}
 
   button{font-family:inherit;cursor:pointer}
-  .btn{width:100%;background:#fff;color:#000;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px}
+  .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px}
   .btn:active{opacity:0.75}
   .btn.secondary{background:var(--surface-1);color:#fff}
   .btn.ghost{background:transparent;color:var(--text-secondary);border:0.5px solid var(--border)}
@@ -266,13 +266,13 @@
   html[data-theme="light"]{
     --bg:#F2F2F7; --surface-0:#FFFFFF; --surface-1:#FFFFFF; --surface-2:#EDEDF2;
     --text:#000000; --text-secondary:#6E6E73; --text-muted:#9A9A9E;
-    --border:rgba(0,0,0,0.08); --accent:#000000; --green:#1FA971; --red:#FF3B30;
+    --border:rgba(0,0,0,0.08); --accent:#007AFF; --accent-tint:rgba(0,122,255,0.12); --green:#1FA971; --red:#FF3B30;
   }
   html[data-theme="light"] .tabbar{background:rgba(255,255,255,0.92)}
-  html[data-theme="light"] .btn{background:#000;color:#fff}
+  html[data-theme="light"] .btn{background:var(--accent);color:#fff}
   html[data-theme="light"] .btn.secondary{background:var(--surface-2);color:#000}
   html[data-theme="light"] .tick.on{color:#fff}
-  html[data-theme="light"] .segmented .seg.active{background:#000;color:#fff}
+  html[data-theme="light"] .segmented .seg.active{background:var(--accent);color:#fff}
   .theme-switch{display:flex;background:var(--surface-2,var(--surface-1));border-radius:12px;padding:3px;gap:2px}
   .theme-switch .opt{flex:1;text-align:center;padding:9px 0;font-size:13px;font-weight:600;color:var(--text-secondary);border-radius:9px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
   .theme-switch .opt.active{background:var(--surface-0);color:var(--text)}
