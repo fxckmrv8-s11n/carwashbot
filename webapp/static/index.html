@@ -570,9 +570,20 @@ function renderHomeSwipeCard(){
 window.homeSwipeStep = (dir) => { haptic(); HOME_IDX += dir; renderHomeSwipeCard(); };
 window.uiWorkerQuick = async (name) => {
   const { summary, session } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
+  const { schedule } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
   const cnt = session.cars.filter(c => c.employee === name).length;
   const sal = summary.washer_salaries?.[name] || 0;
-  tg.showAlert(`${name}\n${cnt} машин сегодня\nК выплате: ${fmt(sal)}`);
+  const sched = schedule?.[name]?.schedule;
+  const working = schedule?.[name]?.working !== false;
+  const schedLine = sched ? `График: ${sched.work}/${sched.rest} · сегодня ${working ? "работает" : "отдыхает 🌙"}` : "График не задан (доступен всегда)";
+  tg.showPopup({
+    title: name,
+    message: `${cnt} машин сегодня · к выплате ${fmt(sal)}\n${schedLine}`,
+    buttons: [
+      { id: "schedule", type: "default", text: "График работы" },
+      { id: "cancel", type: "cancel" },
+    ],
+  }, (id) => { if (id === "schedule") uiSetSchedule(name); });
 };
 window.uiCarQuick = (num) => {
   tg.showConfirm("Удалить эту машину?", async (ok) => {
@@ -1054,7 +1065,7 @@ async function renderWorkers(){
   if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
   el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>${skeleton(3)}`;
   const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
-  const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const { workers, schedule } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
   const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
   el.innerHTML = `
     <div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>
@@ -1069,10 +1080,11 @@ async function renderWorkers(){
         ${workers.length ? workers.map(w => {
           const cnt = session.cars.filter(c => c.employee === w).length;
           const sal = summary.washer_salaries?.[w] || 0;
-          return { w, cnt, sal };
-        }).sort((a,b) => b.sal - a.sal).map(({w, cnt, sal}) => `
-          <div class="wtable-row" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')">
-            <span class="wname"><span class="dot" style="background:${cnt>0?'#33D17A':'var(--text-muted)'}"></span>${w}</span>
+          const working = schedule?.[w]?.working !== false;
+          return { w, cnt, sal, working };
+        }).sort((a,b) => b.sal - a.sal).map(({w, cnt, sal, working}) => `
+          <div class="wtable-row" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')" style="${working?'':'opacity:0.5'}">
+            <span class="wname"><span class="dot" style="background:${cnt>0?'#33D17A':'var(--text-muted)'}"></span>${w}${working?'':' 🌙'}</span>
             <span class="wcount">${cnt}</span>
             <span class="wsal">${fmt(sal)}</span>
           </div>`).join("") : `<p class="empty">Мойщиков пока нет — добавь в Настройках</p>`}
@@ -1145,11 +1157,15 @@ window.uiWorkerRow = (name) => {
   });
 };
 window.uiSetSchedule = (name) => {
+  const refresh = () => {
+    const activeTab = document.querySelector(".tab.active")?.dataset.tab || "home";
+    switchTab(activeTab);
+  };
   const pattern = window.prompt(`График для ${name}\nНапример "3/1" — 3 дня работает, 1 отдыхает.\nОставь пустым, чтобы убрать график (доступен всегда).`, "3/1");
   if (pattern === null) return;
   if (pattern.trim() === "") {
     api(`/api/schedule/${encodeURIComponent(BRANCH)}/${encodeURIComponent(name)}`, { method: "DELETE" })
-      .then(() => { haptic("medium"); tg.showAlert("График сброшен"); renderSettings(); }).catch(() => {});
+      .then(() => { haptic("medium"); tg.showAlert("График сброшен"); refresh(); }).catch(() => {});
     return;
   }
   const m = pattern.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
@@ -1158,7 +1174,7 @@ window.uiSetSchedule = (name) => {
   const startStr = window.prompt("С какой даты считать (ГГГГ-ММ-ДД)?", new Date().toISOString().slice(0, 10));
   if (!startStr) return;
   api("/api/schedule", { method: "POST", body: JSON.stringify({ branch: BRANCH, name, work_days, rest_days, start_date: startStr }) })
-    .then(() => { haptic("medium"); tg.showAlert(`График ${work_days}/${rest_days} установлен`); renderSettings(); })
+    .then(() => { haptic("medium"); tg.showAlert(`График ${work_days}/${rest_days} установлен`); refresh(); })
     .catch(() => {});
 };
 window.switchBranch = () => { BRANCH = null; ME = null; switchTab("home"); };
