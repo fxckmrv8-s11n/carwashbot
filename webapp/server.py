@@ -239,9 +239,9 @@ def api_schedule_week(branch: str, monday: str = ""):
         today = _date.today()
         start = today - _timedelta(days=today.weekday())
 
-    days = [start + _timedelta(days=i) for i in range(5)]  # Пн..Пт
+    days = [start + _timedelta(days=i) for i in range(7)]  # Пн..Вс
     day_labels = [d.strftime("%d.%m") for d in days]
-    weekdays_ru = ["Пн", "Вт", "Ср", "Чт", "Пт"]
+    weekdays_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
     workers = get_branch_workers(branch)
     rows = {}
