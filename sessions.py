@@ -256,12 +256,12 @@ def get_branch_admin(branch: str) -> int:
 
 
 def get_branch_admin_name(branch: str) -> str:
-    """Имя назначенного админа филиала (для PDF/отчётов). Если не назначен — 'Администратор'."""
+    """Имя назначенного админа филиала (для PDF/отчётов). Если не назначен — 'Салим' (админ по умолчанию)."""
     admin_id = get_branch_admin(branch)
     if not admin_id:
-        return "Администратор"
+        return "Салим"
     users = load_users()
-    return users.get(str(admin_id), users.get(admin_id, "Администратор"))
+    return users.get(str(admin_id), users.get(admin_id, "Салим"))
 
 
 def is_branch_admin(user_id: int, branch: str) -> bool:
