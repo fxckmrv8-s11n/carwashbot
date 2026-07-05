@@ -1105,17 +1105,17 @@ async function renderScheduleWeek(){
   el.innerHTML = `
     <div class="back-header"><div class="back" onclick="switchTab('workers')"><i class="ti ti-chevron-left"></i></div><span>График на неделю</span></div>
     <div class="content">
-      <p class="section-label">${BRANCH} · Пн ${data.day_labels[0]} — Пт ${data.day_labels[4]}</p>
-      <div class="card" style="padding:14px">
+      <p class="section-label">${BRANCH} · Пн ${data.day_labels[0]} — Вс ${data.day_labels[6]}</p>
+      <div class="card" style="padding:14px;overflow-x:auto">
         ${!workers.length ? `<p class="empty">Мойщиков пока нет</p>` : `
-        <div style="display:grid;grid-template-columns:1fr repeat(5,32px);gap:4px;align-items:center;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:70px repeat(7,28px);gap:4px;align-items:center;margin-bottom:10px">
           <span></span>
-          ${data.weekday_labels.map((d,i) => `<span style="text-align:center;font-size:11px;color:var(--text-muted)">${d}<br><span style="font-size:9px">${data.day_labels[i]}</span></span>`).join("")}
+          ${data.weekday_labels.map((d,i) => `<span style="text-align:center;font-size:10px;color:var(--text-muted)">${d}<br><span style="font-size:8px">${data.day_labels[i]}</span></span>`).join("")}
         </div>
         ${workers.map(w => `
-          <div style="display:grid;grid-template-columns:1fr repeat(5,32px);gap:4px;align-items:center;padding:8px 0;border-top:0.5px solid var(--border)">
-            <span style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</span>
-            ${data.workers[w].map(working => `<div style="width:24px;height:24px;border-radius:8px;margin:0 auto;background:${working?'var(--accent)':'var(--surface-2)'};display:flex;align-items:center;justify-content:center">${working?'<i class="ti ti-check" style="font-size:13px;color:#fff"></i>':''}</div>`).join("")}
+          <div style="display:grid;grid-template-columns:70px repeat(7,28px);gap:4px;align-items:center;padding:8px 0;border-top:0.5px solid var(--border)">
+            <span style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="width:20px;height:20px;border-radius:50%;font-size:8px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span>${w}</span>
+            ${data.workers[w].map(working => `<div style="width:22px;height:22px;border-radius:7px;margin:0 auto;background:${working?'var(--accent)':'var(--surface-2)'};display:flex;align-items:center;justify-content:center">${working?'<i class="ti ti-check" style="font-size:12px;color:#fff"></i>':''}</div>`).join("")}
           </div>`).join("")}
         `}
       </div>
