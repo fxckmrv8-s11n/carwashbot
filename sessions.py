@@ -255,6 +255,15 @@ def get_branch_admin(branch: str) -> int:
     return get_branch_config(branch).get("admin", 0)
 
 
+def get_branch_admin_name(branch: str) -> str:
+    """Имя назначенного админа филиала (для PDF/отчётов). Если не назначен — 'Администратор'."""
+    admin_id = get_branch_admin(branch)
+    if not admin_id:
+        return "Администратор"
+    users = load_users()
+    return users.get(str(admin_id), users.get(admin_id, "Администратор"))
+
+
 def is_branch_admin(user_id: int, branch: str) -> bool:
     """Владелец (OWNER_ID) — админ всех филиалов."""
     if user_id == OWNER_ID:
