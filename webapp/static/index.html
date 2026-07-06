@@ -1650,7 +1650,7 @@ async function renderWorkers(){
   el.innerHTML=`
     <div class="topbar">
       <div class="topbar-title">Мойщики</div>
-      <div class="bell-btn" onclick="uiAddWorker()"><i class="ti ti-dots"></i></div>
+      <div class="bell-btn" onclick="uiWorkersMenu()"><i class="ti ti-dots"></i></div>
     </div>
 
     <div class="home-stat-row">
@@ -1818,6 +1818,21 @@ async function renderSettings(){
     </div>
   `;
 }
+
+/* ─── WORKERS HEADER MENU ────────────────────────────────────────────────── */
+window.uiWorkersMenu=()=>{
+  tg.showPopup({
+    title:"Мойщики",message:"Что хочешь сделать?",
+    buttons:[
+      {id:"schedule",type:"default",text:"График работы"},
+      {id:"add",type:"default",text:"Добавить мойщика"},
+      {id:"cancel",type:"cancel"},
+    ],
+  },(id)=>{
+    if(id==="schedule") switchTab("schedule");
+    else if(id==="add") uiAddWorker();
+  });
+};
 
 /* ─── WORKER ACTIONS ─────────────────────────────────────────────────────── */
 window.uiWorkerRow=(name)=>{
