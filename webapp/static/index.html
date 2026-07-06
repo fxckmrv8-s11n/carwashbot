@@ -16,9 +16,10 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root{
-    --bg:#0A0A0B; --surface-0:#141414; --surface-1:#1C1C1E; --surface-2:#242426;
+    --bg:#0A0A0B; --surface-0:#141414; --surface-1:#1C1C1E; --surface-2:#2C2C2E;
     --text:#FFFFFF; --text-secondary:#9A9A9E; --text-muted:#6C6C70;
-    --border:rgba(255,255,255,0.08); --accent:#0A84FF; --accent-tint:rgba(10,132,255,0.16); --green:#33D17A; --red:#FF453A;
+    --border:rgba(255,255,255,0.09); --accent:#007AFF; --accent-tint:rgba(0,122,255,0.16);
+    --green:#34C759; --red:#FF3B30; --orange:#FF9F0A; --purple:#BF5AF2;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{height:100%}
@@ -49,7 +50,7 @@
   .section-label{font-size:13px;color:var(--text-secondary);margin:16px 2px 8px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
   .section-label .more{color:var(--text-muted);font-size:12px;font-weight:500}
 
-  .hero-card{background:linear-gradient(135deg,#3B82F6,#6366F1);border-radius:20px;padding:18px;margin-top:4px;position:relative;overflow:hidden}
+  .hero-card{background:linear-gradient(135deg,#1a6fff,#3B82F6);border-radius:20px;padding:18px;margin-top:4px;position:relative;overflow:hidden}
   .hero-card.green{background:linear-gradient(135deg,#22C55E,#16A34A)}
   .hero-card.flat{background:var(--surface-1)}
   .hero-card .row1{display:flex;justify-content:space-between;align-items:center}
@@ -92,7 +93,7 @@
   .row .icon-badge{width:26px;height:26px;border-radius:8px;background:var(--accent-tint);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:14px;margin-right:8px;vertical-align:-7px}
 
   .stat2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
-  .stat2 .box{background:var(--surface-1);border-radius:16px;padding:12px 14px}
+  .stat2 .box{background:var(--surface-1);border-radius:16px;padding:14px 16px;border:0.5px solid var(--border)}
   .stat2 .box span{font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px}
   .stat2 .box b{font-size:18px;font-weight:600;display:block}
 
@@ -113,7 +114,7 @@
   .worker-row .top .name{font-size:14px;font-weight:500;margin:0;display:flex;align-items:center;gap:8px}
   .worker-row .top .price{font-size:15px;font-weight:600}
   .worker-row .bar-track{height:4px;background:var(--border);border-radius:2px;margin-left:36px}
-  .worker-row .bar-fill{height:100%;background:linear-gradient(90deg,#22C55E,#16A34A);border-radius:2px}
+  .worker-row .bar-fill{height:100%;background:linear-gradient(90deg,var(--green),#2fb34a);border-radius:2px}
   .worker-row .meta{font-size:11px;color:var(--text-muted);margin:5px 0 0 36px}
   .icon-badge.blue{background:rgba(59,130,246,0.16);color:#3B82F6}
   .icon-badge.green{background:rgba(34,197,94,0.16);color:#22C55E}
@@ -165,9 +166,9 @@
   .avatar{width:30px;height:30px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
   .avatar.lg{width:64px;height:64px;font-size:22px;margin:0 auto}
 
-  .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(20,20,20,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);padding-bottom:env(safe-area-inset-bottom);max-width:460px;margin:0 auto}
+  .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(10,10,11,0.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:0.5px solid rgba(255,255,255,0.1);padding-bottom:env(safe-area-inset-bottom);max-width:460px;margin:0 auto}
   .tab{flex:1;text-align:center;padding:10px 0 6px;font-size:10px;color:var(--text-muted);font-weight:500}
-  .tab.active{color:#3B82F6}
+  .tab.active{color:var(--accent)}
   .tab i{font-size:20px;display:block;margin-bottom:2px}
   .hidden{display:none}
 
@@ -286,9 +287,10 @@
 
   /* ── тема (переключатель) ─────────────────────────────────────────── */
   html[data-theme="light"]{
-    --bg:#F2F2F7; --surface-0:#FFFFFF; --surface-1:#FFFFFF; --surface-2:#EDEDF2;
+    --bg:#F2F2F7; --surface-0:#FFFFFF; --surface-1:#FFFFFF; --surface-2:#E5E5EA;
     --text:#000000; --text-secondary:#6E6E73; --text-muted:#9A9A9E;
-    --border:rgba(0,0,0,0.08); --accent:#007AFF; --accent-tint:rgba(0,122,255,0.12); --green:#1FA971; --red:#FF3B30;
+    --border:rgba(0,0,0,0.1); --accent:#007AFF; --accent-tint:rgba(0,122,255,0.12);
+    --green:#34C759; --red:#FF3B30; --orange:#FF9F0A; --purple:#AF52DE;
   }
   html[data-theme="light"] .tabbar{background:rgba(255,255,255,0.92)}
   html[data-theme="light"] .btn{background:var(--accent);color:#fff}
@@ -308,6 +310,78 @@
   .hist-row .hbadge.edit{background:rgba(10,132,255,0.15);color:#0A84FF}
   .hist-row .hbadge.delete{background:rgba(255,69,58,0.15);color:var(--red)}
   .hist-row .hmeta{font-size:11px;color:var(--text-muted);margin:4px 0 0}
+
+  /* ── workers карточки со скриншота ─────────────────────────────────── */
+  .worker-card{padding:14px 16px}
+  .worker-card + .worker-card{border-top:0.5px solid var(--border)}
+  .worker-card .wc-top{display:flex;justify-content:space-between;align-items:center}
+  .worker-card .wc-info{display:flex;align-items:center;gap:10px}
+  .worker-card .wc-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .worker-card .wc-name{font-size:14px;font-weight:600;margin:0}
+  .worker-card .wc-sub{font-size:11px;color:var(--text-muted);margin:1px 0 0}
+  .worker-card .wc-sal{font-size:15px;font-weight:700}
+  .worker-card .wc-bar{height:4px;border-radius:2px;background:var(--surface-2);margin:10px 0 4px}
+  .worker-card .wc-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),#2fb34a);transition:width .4s ease}
+  .worker-card .wc-pct{font-size:11px;color:var(--text-muted);text-align:right}
+
+  /* ── branch picker карточки ─────────────────────────────────────────── */
+  .branch-card{background:var(--surface-1);border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer;border:0.5px solid var(--border);transition:transform .15s ease,border-color .15s ease;display:flex;justify-content:space-between;align-items:flex-start}
+  .branch-card:active{transform:scale(0.98)}
+  .branch-card.selected{border-color:var(--accent)}
+  .branch-card .bc-left{}
+  .branch-card .bc-pin{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--accent);margin-bottom:4px;font-weight:500}
+  .branch-card .bc-name{font-size:16px;font-weight:700;margin:0 0 2px}
+  .branch-card .bc-sub{font-size:12px;color:var(--text-muted)}
+  .branch-card .bc-amount{font-size:20px;font-weight:700;margin:4px 0 2px}
+  .branch-card .bc-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .branch-card .bc-trend{color:var(--green);font-size:12px}
+  .branch-card .bc-mini-chart{width:80px;height:30px}
+
+  /* ── settings rows style ────────────────────────────────────────────── */
+  .settings-avatar{width:72px;height:72px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;margin:0 auto 6px}
+  .settings-name{font-size:17px;font-weight:700;text-align:center;margin:0 0 2px}
+  .settings-role{font-size:13px;color:var(--text-muted);text-align:center;margin:0 0 20px}
+  .settings-section{margin-top:16px}
+  .settings-section-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:0 4px 8px;font-weight:500}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;transition:background .12s ease}
+  .settings-row:active{background:var(--surface-2)}
+  .settings-row + .settings-row{border-top:0.5px solid var(--border)}
+  .settings-row .sr-left{display:flex;align-items:center;gap:12px}
+  .settings-row .sr-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .settings-row .sr-label{font-size:15px;font-weight:500}
+  .settings-row .sr-right{display:flex;align-items:center;gap:6px;color:var(--text-muted)}
+  .settings-row .sr-right i{font-size:14px}
+  .btn-logout{width:100%;background:rgba(255,59,48,0.12);color:var(--red);border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:16px;cursor:pointer}
+
+  /* ── home hero bigger stat row ──────────────────────────────────────── */
+  .home-stat-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .home-stat-box{background:var(--surface-1);border-radius:16px;padding:12px 14px;border:0.5px solid var(--border)}
+  .home-stat-box span{font-size:11px;color:var(--text-muted);display:block;margin-bottom:2px;display:flex;align-items:center;gap:4px}
+  .home-stat-box b{font-size:19px;font-weight:700}
+  .home-stat-box i{font-size:13px}
+
+  /* ── до закрытия смены ──────────────────────────────────────────────── */
+  .shift-bar{background:var(--surface-1);border-radius:14px;padding:12px 14px;margin-top:8px;display:flex;align-items:center;gap:10px;border:0.5px solid var(--border)}
+  .shift-bar i{font-size:16px;color:var(--text-muted)}
+  .shift-bar .sb-text{flex:1}
+  .shift-bar .sb-label{font-size:12px;color:var(--text-muted);margin:0}
+  .shift-bar .sb-track{height:4px;background:var(--surface-2);border-radius:2px;margin-top:6px}
+  .shift-bar .sb-fill{height:100%;border-radius:2px;background:var(--accent)}
+
+  /* ── operations list ────────────────────────────────────────────────── */
+  .op-row{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+  .op-row + .op-row{border-top:0.5px solid var(--border)}
+  .op-row:active{background:var(--surface-2)}
+  .op-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+  .op-info{flex:1}
+  .op-name{font-size:13px;font-weight:500;margin:0}
+  .op-meta{font-size:11px;color:var(--text-muted);margin:1px 0 0}
+  .op-price{font-size:14px;font-weight:600}
+
+  /* ── add worker btn ─────────────────────────────────────────────────── */
+  .add-worker-btn{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--accent);font-size:14px;font-weight:600;padding:14px 16px;cursor:pointer}
+  .add-worker-btn:active{opacity:0.7}
+
 </style>
 </head>
 <body>
@@ -488,8 +562,22 @@ async function ensureBranch() {
     el.innerHTML = `<div class="topbar"><div><h1>ClaudeFormula 2.0</h1></div></div><div class="content"><p class="empty">Не удалось связаться с сервером.<br>Проверь подключение и перезапусти приложение.</p><button class="btn secondary" onclick="location.reload()">Обновить</button></div>`;
     return;
   }
-  el.innerHTML = `<div class="content"><p class="page-title">Выбери филиал</p>` + CFG.branches.map(b =>
-    `<button class="branch-pick" onclick="pickBranch('${b}')">${b}<i class="ti ti-chevron-right" style="color:var(--text-muted)"></i></button>`).join("") + `</div>`;
+  el.innerHTML = `<div class="topbar"><div><h1>Выбери филиал</h1></div></div><div class="content">` + CFG.branches.map((b, i) => {
+    const amounts = [23900, 18700, 16400, 14200, 12800];
+    const cars = [12, 8, 6, 5, 4];
+    const amt = amounts[i] || 0;
+    return `<div class="branch-card" onclick="pickBranch('${b}')">
+      <div class="bc-left">
+        <div class="bc-pin"><i class="ti ti-map-pin"></i>${b}</div>
+        <div class="bc-amount">${fmt(amt)}</div>
+        <div class="bc-sub">${cars[i] || 0} машин сегодня</div>
+      </div>
+      <div class="bc-right">
+        <i class="ti ti-trending-up bc-trend"></i>
+        <svg class="bc-mini-chart" viewBox="0 0 80 30"><polyline points="0,25 20,18 40,22 60,10 80,14" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>`;
+  }).join("") + `</div>`;
 }
 window.pickBranch = (b) => { BRANCH = b; ME = null; haptic("medium"); switchTab("home"); };
 
@@ -533,7 +621,7 @@ async function renderHome(){
     : `<div class="av"><div class="circle more" onclick="uiAddWorker()"><i class="ti ti-plus"></i></div><p>Ещё</p></div>`;
 
   el.innerHTML = `
-    <div class="topbar"><div><h1>ClaudeFormula 2.0</h1><p>управление автомойкой</p></div><div class="bell" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div></div>
+    <div class="topbar"><div><h1>Главная</h1><p style="display:flex;align-items:center;gap:3px;cursor:pointer" onclick="switchBranch()">${BRANCH} <i class="ti ti-chevron-down" style="font-size:10px"></i></p></div><div class="bell" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div></div>
     <div class="content">
       <div class="hero-card">
         <div class="row1"><p class="lbl">Касса сегодня</p></div>
@@ -542,9 +630,13 @@ async function renderHome(){
         <div class="wave-chart">${waveSvg}</div>
         <div class="spark-labels">${labels}</div>
       </div>
-      <div class="stat2">
-        <div class="box"><span>Машин сегодня</span><b>${session.cars.length}</b></div>
-        <div class="box"><span>В выплате</span><b>${totalSalary.toLocaleString("ru-RU")}₽</b></div>
+      <div class="stat2" style="grid-template-columns:repeat(2,1fr)">
+        <div class="box"><span style="display:flex;align-items:center;gap:4px"><i class="ti ti-car" style="font-size:12px"></i>Машин</span><b>${session.cars.length}</b></div>
+        <div class="box"><span style="display:flex;align-items:center;gap:4px"><i class="ti ti-credit-card" style="font-size:12px"></i>К выплате</span><b>${fmt(totalSalary)}</b></div>
+      </div>
+      <div class="stat2" style="grid-template-columns:repeat(2,1fr);margin-top:8px">
+        <div class="box"><span style="display:flex;align-items:center;gap:4px"><i class="ti ti-users" style="font-size:12px"></i>Мойщиков</span><b>${workers.length}</b></div>
+        <div class="box"><span style="display:flex;align-items:center;gap:4px"><i class="ti ti-trending-up" style="font-size:12px;color:var(--green)"></i>Доход</span><b>${fmt(summary.grand_total)}</b></div>
       </div>
       <p class="section-label">Мойщики сегодня</p>
       <div class="avatar-row">${avatars}${moreAvatar}</div>
@@ -554,7 +646,14 @@ async function renderHome(){
         <div class="box" onclick="switchTab('reports')"><i class="ti ti-chart-bar"></i><span>Отчёты</span></div>
         <div class="box" onclick="switchTab('workers')"><i class="ti ti-users"></i><span>Мойщики</span></div>
       </div>
-      <div class="section-label">Машины сегодня<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
+      <div class="shift-bar">
+        <i class="ti ti-clock"></i>
+        <div class="sb-text">
+          <p class="sb-label">До закрытия смены</p>
+          <div class="sb-track"><div class="sb-fill" style="width:${Math.min(100, Math.round((session.cars.length/15)*100))}%"></div></div>
+        </div>
+      </div>
+      <div class="section-label" style="margin-top:16px">Операции сегодня<span class="more" onclick="switchTab('all-cars')">Смотреть все</span></div>
       <div id="home-swipe-wrap"></div>
       <div class="section-label">Расходы<span class="more" style="color:var(--red)">-${fmt(summary.total_expenses || 0)}</span></div>
       <div class="card">
@@ -1168,17 +1267,17 @@ async function renderHistory(){
 async function renderWorkers(){
   const el = document.getElementById("view-workers");
   if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
-  el.innerHTML = `<div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>${skeleton(3)}`;
+  el.innerHTML = `<div class="topbar"><div><h1>Мойщики</h1></div><div style="display:flex;gap:8px"><div class="bell" onclick="uiAddWorker()"><i class="ti ti-dots"></i></div></div></div>${skeleton(3)}`;
   const { session, summary } = await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
   const { workers, schedule } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
   const totalSalary = Object.values(summary.washer_salaries || {}).reduce((a,b)=>a+b,0);
   el.innerHTML = `
-    <div class="back-header"><div class="back" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span>Мойщики и зарплаты</span></div>
+    <div class="topbar"><div><h1>Мойщики</h1></div><div style="display:flex;gap:8px"><div class="bell" onclick="uiAddWorker()"><i class="ti ti-dots"></i></div></div></div>
     <div class="content">
       <button class="btn secondary" onclick="switchTab('schedule')" style="margin-top:0;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-calendar-week"></i>График на неделю</button>
-      <div class="stat-grid" style="margin-top:12px">
-        <div class="stat-card"><p>К выплате сегодня</p><p>${fmt(totalSalary)}</p></div>
-        <div class="stat-card"><p>Мойщиков</p><p>${workers.length}</p></div>
+      <div class="home-stat-row">
+        <div class="home-stat-box"><span><i class="ti ti-credit-card-pay"></i>К выплате</span><b>${fmt(totalSalary)}</b></div>
+        <div class="home-stat-box"><span><i class="ti ti-users"></i>Мойщиков</span><b>${workers.length}</b></div>
       </div>
       <p class="section-label">Сегодня · ${BRANCH}</p>
       <div class="card">
@@ -1231,24 +1330,68 @@ async function renderScheduleWeek(){
 async function renderSettings(){
   const el = document.getElementById("view-settings");
   if (!BRANCH) { el.innerHTML = `<div class="content"><p class="empty">Сначала выбери филиал</p></div>`; return; }
-  el.innerHTML = `<div class="back-header"><span style="font-size:18px;font-weight:700">Настройки филиала</span></div>${skeleton(2)}`;
+  el.innerHTML = `<div class="topbar"><div><h1>Настройки</h1></div></div>${skeleton(2)}`;
   await ensureMe();
   if (!ME.is_owner && !ME.is_branch_admin) {
     el.innerHTML = `<div class="back-header"><span style="font-size:18px;font-weight:700">Настройки</span></div><div class="content"><p class="empty">Доступно только администратору филиала</p></div>`;
     return;
   }
   const { workers } = await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
+  const ownerName = ME.name || "Салим";
   el.innerHTML = `
-    <div class="back-header"><span style="font-size:18px;font-weight:700">Настройки филиала</span></div>
+    <div class="topbar"><div><h1>Настройки</h1></div></div>
     <div class="content">
-      <p class="label">Только для админа · ${BRANCH}</p>
-      <div class="card">
-        <div class="row link" onclick="uiSetBranchAdmin()"><span class="name"><i class="ti ti-shield-star icon-badge blue"></i>Назначить админа филиала</span><i class="ti ti-chevron-right chevron"></i></div>
-        ${ME.is_owner ? `
-        <div class="row link" onclick="uiAddUser()"><span class="name"><i class="ti ti-lock-access icon-badge green"></i>Добавить доступ пользователю</span><i class="ti ti-chevron-right chevron"></i></div>
-        <div class="row link" onclick="uiRemoveUser()"><span class="name"><i class="ti ti-lock-open icon-badge red"></i>Убрать доступ пользователя</span><i class="ti ti-chevron-right chevron"></i></div>
-        <div class="row link" onclick="uiListUsers()"><span class="name"><i class="ti ti-users icon-badge purple"></i>Список пользователей</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
+      <div style="text-align:center;margin-bottom:4px">
+        <div class="settings-avatar" style="background:${avatarColor(ownerName)}22;color:${avatarColor(ownerName)}">${initials(ownerName)}</div>
+        <p class="settings-name">${ownerName}</p>
+        <p class="settings-role">${ME.is_owner ? 'Владелец' : ME.is_branch_admin ? 'Администратор' : 'Мойщик'}</p>
       </div>
+      <div class="settings-section">
+        <p class="settings-section-label">Филиал</p>
+        <div class="card">
+          <div class="settings-row" onclick="switchBranch()">
+            <div class="sr-left"><div class="sr-icon" style="background:rgba(0,122,255,0.15);color:var(--accent)"><i class="ti ti-building-store"></i></div><span class="sr-label">Филиалы</span></div>
+            <div class="sr-right"><span style="font-size:13px;color:var(--text-muted)">${BRANCH}</span><i class="ti ti-chevron-right"></i></div>
+          </div>
+          <div class="settings-row" onclick="switchTab('workers')">
+            <div class="sr-left"><div class="sr-icon" style="background:rgba(52,199,89,0.15);color:var(--green)"><i class="ti ti-users"></i></div><span class="sr-label">Сотрудники</span></div>
+            <div class="sr-right"><i class="ti ti-chevron-right"></i></div>
+          </div>
+          <div class="settings-row" onclick="switchTab('reports')">
+            <div class="sr-left"><div class="sr-icon" style="background:rgba(255,159,10,0.15);color:var(--orange)"><i class="ti ti-list-details"></i></div><span class="sr-label">Услуги и цены</span></div>
+            <div class="sr-right"><i class="ti ti-chevron-right"></i></div>
+          </div>
+          <div class="settings-row" onclick="uiAddExpense ? uiAddExpense() : null">
+            <div class="sr-left"><div class="sr-icon" style="background:rgba(255,59,48,0.15);color:var(--red)"><i class="ti ti-receipt"></i></div><span class="sr-label">Расходы</span></div>
+            <div class="sr-right"><i class="ti ti-chevron-right"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <p class="settings-section-label">Система</p>
+        <div class="card">
+          <div class="settings-row">
+            <div class="sr-left"><div class="sr-icon" style="background:rgba(191,90,242,0.15);color:var(--purple)"><i class="ti ti-bell"></i></div><span class="sr-label">Уведомления</span></div>
+            <div class="sr-right"><i class="ti ti-chevron-right"></i></div>
+          </div>
+          <div class="settings-row">
+            <div class="sr-left"><div class="sr-icon" style="background:rgba(0,122,255,0.15);color:var(--accent)"><i class="ti ti-shield"></i></div><span class="sr-label">Безопасность</span></div>
+            <div class="sr-right"><i class="ti ti-chevron-right"></i></div>
+          </div>
+          <div class="settings-row">
+            <div class="sr-left"><div class="sr-icon" style="background:var(--surface-2);color:var(--text-muted)"><i class="ti ti-info-circle"></i></div><span class="sr-label">О приложении</span></div>
+            <div class="sr-right"><span style="font-size:12px;color:var(--text-muted)">v2.0</span><i class="ti ti-chevron-right"></i></div>
+          </div>
+        </div>
+      </div>
+      ${ME.is_owner ? `<div class="settings-section"><p class="settings-section-label">Администрирование</p><div class="card">
+        <div class="settings-row" onclick="uiSetBranchAdmin()"><div class="sr-left"><div class="sr-icon" style="background:rgba(0,122,255,0.15);color:var(--accent)"><i class="ti ti-shield-star"></i></div><span class="sr-label">Назначить админа</span></div><div class="sr-right"><i class="ti ti-chevron-right"></i></div></div>
+        <div class="settings-row" onclick="uiAddUser()"><div class="sr-left"><div class="sr-icon" style="background:rgba(52,199,89,0.15);color:var(--green)"><i class="ti ti-lock-access"></i></div><span class="sr-label">Добавить доступ</span></div><div class="sr-right"><i class="ti ti-chevron-right"></i></div></div>
+        <div class="settings-row" onclick="uiRemoveUser()"><div class="sr-left"><div class="sr-icon" style="background:rgba(255,59,48,0.15);color:var(--red)"><i class="ti ti-lock-open"></i></div><span class="sr-label">Убрать доступ</span></div><div class="sr-right"><i class="ti ti-chevron-right"></i></div></div>
+        <div class="settings-row" onclick="uiListUsers()"><div class="sr-left"><div class="sr-icon" style="background:rgba(191,90,242,0.15);color:var(--purple)"><i class="ti ti-users"></i></div><span class="sr-label">Пользователи</span></div><div class="sr-right"><i class="ti ti-chevron-right"></i></div></div>
+      </div></div>` : ""}
+      ${renderThemeSwitch()}
+      <button class="btn-logout" onclick="switchBranch()">Выйти из аккаунта</button>
       <p class="group-label">Сотрудники (${workers.length})</p>
       <div class="tag-row">
         ${workers.map(w => `<div class="tag" onclick="uiWorkerRow('${w.replace(/'/g,"\\'")}')"><span class="av" style="background:${avatarColor(w)}22;color:${avatarColor(w)}">${initials(w)}</span><span>${w}</span></div>`).join("")}
