@@ -167,6 +167,11 @@ class CarEditIn(BaseModel):
     payment: Optional[str] = None
     payment_split: Optional[Dict[str, int]] = None
     comment: Optional[str] = None
+    status: Optional[str] = None
+
+
+class CarStatusIn(BaseModel):
+    status: str  # "in_progress" | "done"
 
 
 class PresetIn(BaseModel):
@@ -368,6 +373,7 @@ def api_add_car(body: CarIn, x_init_data: str = Header(default="")):
         "payment": body.payment,
         "payment_split": body.payment_split,
         "comment": body.comment,
+        "status": "in_progress",
         "time": datetime.now().strftime("%H:%M"),
     }
     session["cars"].append(car)
@@ -437,6 +443,23 @@ def api_edit_car(branch: str, num: int, body: CarEditIn, x_init_data: str = Head
     log_action(branch, "edit", current_user_id(x_init_data), current_user_name(x_init_data),
                f"{car['car'] or 'машина'} · {car['service']} · {car['price']}₽")
     return {"ok": True, "car": car, "summary": calculate_summary(session)}
+
+
+@app.patch("/api/car/{branch}/{num}/status")
+def api_set_car_status(branch: str, num: int, body: CarStatusIn, x_init_data: str = Header(default="")):
+    """Переключение статуса 'в работе' / 'оплачено'. Это отметка для персонала —
+    на кассу и расчёты никак не влияет (машина учитывается в кассе сразу при добавлении)."""
+    if body.status not in ("in_progress", "done"):
+        raise HTTPException(400, "Статус может быть 'in_progress' или 'done'")
+    session = get_session(branch)
+    car = next((c for c in session["cars"] if c["num"] == num), None)
+    if not car:
+        raise HTTPException(404, "Машина не найдена")
+    car["status"] = body.status
+    save_sessions()
+    log_action(branch, "status", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{car.get('car') or 'машина'} · статус → {'оплачено' if body.status=='done' else 'в работе'}")
+    return {"ok": True, "car": car}
 
 
 @app.delete("/api/car/{branch}/{num}")
