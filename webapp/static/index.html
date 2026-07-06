@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root{
-    --bg:#000000; --surface-0:#141414; --surface-1:#1C1C1E; --surface-2:#242426;
+    --bg:#0A0A0B; --surface-0:#141414; --surface-1:#1C1C1E; --surface-2:#242426;
     --text:#FFFFFF; --text-secondary:#9A9A9E; --text-muted:#6C6C70;
     --border:rgba(255,255,255,0.08); --accent:#0A84FF; --accent-tint:rgba(10,132,255,0.16); --green:#33D17A; --red:#FF453A;
   }
@@ -79,7 +79,7 @@
   .row .sub{font-size:12px;color:var(--text-muted);margin:2px 0 0}
   .row .price{font-size:14px;font-weight:600;margin:0}
   .row .meta{text-align:right}
-  .row.link{cursor:pointer}
+  .row.link{cursor:pointer;transition:background 120ms cubic-bezier(0,0,0.2,1)}
   .row.link:active{background:var(--surface-2)}
   .row .chevron{color:var(--text-muted);font-size:16px}
   .row .icon-badge{width:26px;height:26px;border-radius:8px;background:var(--accent-tint);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:14px;margin-right:8px;vertical-align:-7px}
@@ -90,7 +90,8 @@
   .stat2 .box b{font-size:18px;font-weight:600;display:block}
 
   .quick3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-  .quick3 .box{background:var(--surface-1);border-radius:16px;padding:14px 6px;text-align:center;cursor:pointer}
+  .quick3 .box{background:var(--surface-1);border-radius:16px;padding:14px 6px;text-align:center;cursor:pointer;transition:transform 150ms cubic-bezier(0,0,0.2,1)}
+  .quick3 .box:active{transform:scale(0.96)}
   .quick3 .box i{font-size:18px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--accent-tint);color:var(--accent);margin-left:auto;margin-right:auto}
   .quick3 .box span{font-size:11px;color:var(--text-secondary)}
 
@@ -109,8 +110,8 @@
   .worker-row .meta{font-size:11px;color:var(--text-muted);margin:5px 0 0 36px}
 
   button{font-family:inherit;cursor:pointer}
-  .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px}
-  .btn:active{opacity:0.75}
+  .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px;transition:transform 150ms cubic-bezier(0,0,0.2,1),opacity 150ms cubic-bezier(0,0,0.2,1)}
+  .btn:active{transform:scale(0.97);opacity:0.9}
   .btn.secondary{background:var(--surface-1);color:#fff}
   .btn.ghost{background:transparent;color:var(--text-secondary);border:0.5px solid var(--border)}
 
@@ -123,20 +124,28 @@
   .field-select select{padding-right:36px}
   .field-select::after{content:"";position:absolute;right:14px;top:50%;transform:translateY(-60%) rotate(45deg);width:7px;height:7px;border-right:1.5px solid var(--text-muted);border-bottom:1.5px solid var(--text-muted);pointer-events:none}
 
-  .chip-label{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer;transition:background .12s}
+  .chip-label{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer;transition:background 150ms cubic-bezier(0,0,0.2,1)}
   .chip-label + .chip-label{border-top:0.5px solid var(--border)}
   .chip-label.active{background:var(--surface-2)}
   .chip-label .l{font-size:14px}
   .chip-label .r{display:flex;align-items:center;gap:10px}
   .chip-label .p{font-size:13px;color:var(--text-secondary)}
-  .tick{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;flex-shrink:0}
-  .tick.on{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+  .tick{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;flex-shrink:0;transition:transform 150ms cubic-bezier(0,0,0.2,1),background 150ms cubic-bezier(0,0,0.2,1),border-color 150ms cubic-bezier(0,0,0.2,1)}
+  .tick.on{background:var(--accent);border-color:var(--accent);color:var(--bg);transform:scale(1.05)}
   input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:#fff}
 
   .del{color:var(--red);font-size:12px;font-weight:500}
   .empty{color:var(--text-muted);font-size:14px;text-align:center;padding:32px 16px}
   .skeleton{background:var(--surface-1);border-radius:16px;height:56px;margin-bottom:10px;animation:pulse 1.2s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+  @media (prefers-reduced-motion: reduce){
+    .btn, .quick3 .box, .preset-chip, .tick, .chip-label, .row.link, .theme-switch .opt{
+      transition:opacity 150ms linear !important;
+    }
+    .btn:active, .quick3 .box:active, .preset-chip:active{transform:none !important}
+    .tick.on{transform:none !important}
+  }
 
   .branch-pick{width:100%;text-align:left;background:var(--surface-1);border:none;border-radius:16px;padding:16px;font-size:15px;font-weight:500;margin-bottom:10px;color:var(--text);display:flex;justify-content:space-between;align-items:center}
   .branch-pick:active{opacity:0.7}
@@ -257,7 +266,8 @@
 
   /* ── пресеты услуг ─────────────────────────────────────────────────── */
   .preset-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-bottom:14px}
-  .preset-chip{flex-shrink:0;background:var(--surface-1);border:0.5px solid var(--border);border-radius:14px;padding:9px 14px;cursor:pointer}
+  .preset-chip{flex-shrink:0;background:var(--surface-1);border:0.5px solid var(--border);border-radius:14px;padding:9px 14px;cursor:pointer;transition:transform 150ms cubic-bezier(0,0,0.2,1)}
+  .preset-chip:active{transform:scale(0.96)}
   .preset-chip .pname{font-size:12px;font-weight:600;display:block}
   .preset-chip .pcount{font-size:10px;color:var(--text-muted)}
   .preset-chip-add{flex-shrink:0;border:1px dashed var(--text-muted);border-radius:14px;padding:9px 14px;color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer}
@@ -274,7 +284,7 @@
   html[data-theme="light"] .tick.on{color:#fff}
   html[data-theme="light"] .segmented .seg.active{background:var(--accent);color:#fff}
   .theme-switch{display:flex;background:var(--surface-2,var(--surface-1));border-radius:12px;padding:3px;gap:2px}
-  .theme-switch .opt{flex:1;text-align:center;padding:9px 0;font-size:13px;font-weight:600;color:var(--text-secondary);border-radius:9px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+  .theme-switch .opt{flex:1;text-align:center;padding:9px 0;font-size:13px;font-weight:600;color:var(--text-secondary);border-radius:9px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background 150ms cubic-bezier(0,0,0.2,1),color 150ms cubic-bezier(0,0,0.2,1)}
   .theme-switch .opt.active{background:var(--surface-0);color:var(--text)}
 
   /* ── история кассы ─────────────────────────────────────────────────── */
@@ -308,7 +318,7 @@
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
-try{ tg.setHeaderColor("#000000"); tg.setBackgroundColor("#000000"); }catch(e){}
+try{ tg.setHeaderColor("#0A0A0B"); tg.setBackgroundColor("#0A0A0B"); }catch(e){}
 
 window.addEventListener("error", (e) => {
   const el = document.getElementById("view-home");
@@ -349,7 +359,7 @@ function applyTheme(t){
   try{ localStorage.setItem("cf_theme", t); }catch(e){}
   try{
     if (t === "light") { tg.setHeaderColor("#F2F2F7"); tg.setBackgroundColor("#F2F2F7"); }
-    else { tg.setHeaderColor("#000000"); tg.setBackgroundColor("#000000"); }
+    else { tg.setHeaderColor("#0A0A0B"); tg.setBackgroundColor("#0A0A0B"); }
   }catch(e){}
 }
 function currentTheme(){
