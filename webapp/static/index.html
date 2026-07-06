@@ -49,13 +49,20 @@
   .section-label{font-size:13px;color:var(--text-secondary);margin:16px 2px 8px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
   .section-label .more{color:var(--text-muted);font-size:12px;font-weight:500}
 
-  .hero-card{background:var(--surface-1);border-radius:20px;padding:18px;margin-top:4px}
+  .hero-card{background:linear-gradient(135deg,#3B82F6,#6366F1);border-radius:20px;padding:18px;margin-top:4px;position:relative;overflow:hidden}
+  .hero-card.green{background:linear-gradient(135deg,#22C55E,#16A34A)}
+  .hero-card.flat{background:var(--surface-1)}
   .hero-card .row1{display:flex;justify-content:space-between;align-items:center}
-  .hero-card .lbl{font-size:13px;color:var(--text-secondary);margin:0}
-  .hero-card .pill{background:rgba(51,209,122,0.15);color:var(--green);font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px}
+  .hero-card .lbl{font-size:13px;color:rgba(255,255,255,0.75);margin:0}
+  .hero-card.flat .lbl{color:var(--text-secondary)}
+  .hero-card .pill{background:rgba(0,0,0,0.18);color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px}
   .hero-card .amount-row{display:flex;align-items:baseline;gap:8px;margin-top:2px}
-  .hero-card .amount{font-size:34px;font-weight:700;margin:0;letter-spacing:-0.02em}
-  .hero-card .sub{font-size:12px;color:var(--text-muted);margin:4px 0 0}
+  .hero-card .amount{font-size:34px;font-weight:700;margin:0;letter-spacing:-0.02em;color:#fff}
+  .hero-card.flat .amount{color:var(--text)}
+  .hero-card .sub{font-size:12px;color:rgba(255,255,255,0.7);margin:4px 0 0}
+  .hero-card.flat .sub{color:var(--text-muted)}
+  .wave-chart{margin-top:14px}
+  .wave-chart svg{display:block;width:100%;height:44px}
   .spark{display:flex;align-items:flex-end;gap:4px;height:36px;margin-top:16px}
   .spark .bar{flex:1;background:var(--border-strong,rgba(255,255,255,0.15));border-radius:3px;min-height:4px}
   .spark .bar.today{background:var(--accent)}
@@ -106,8 +113,13 @@
   .worker-row .top .name{font-size:14px;font-weight:500;margin:0;display:flex;align-items:center;gap:8px}
   .worker-row .top .price{font-size:15px;font-weight:600}
   .worker-row .bar-track{height:4px;background:var(--border);border-radius:2px;margin-left:36px}
-  .worker-row .bar-fill{height:100%;background:var(--text);border-radius:2px}
+  .worker-row .bar-fill{height:100%;background:linear-gradient(90deg,#22C55E,#16A34A);border-radius:2px}
   .worker-row .meta{font-size:11px;color:var(--text-muted);margin:5px 0 0 36px}
+  .icon-badge.blue{background:rgba(59,130,246,0.16);color:#3B82F6}
+  .icon-badge.green{background:rgba(34,197,94,0.16);color:#22C55E}
+  .icon-badge.orange{background:rgba(249,115,22,0.16);color:#F97316}
+  .icon-badge.purple{background:rgba(139,92,246,0.16);color:#8B5CF6}
+  .icon-badge.red{background:rgba(239,68,68,0.16);color:#EF4444}
 
   button{font-family:inherit;cursor:pointer}
   .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;height:50px;font-size:15px;font-weight:600;margin-top:8px;transition:transform 150ms cubic-bezier(0,0,0.2,1),opacity 150ms cubic-bezier(0,0,0.2,1)}
@@ -155,7 +167,7 @@
 
   .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(20,20,20,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);padding-bottom:env(safe-area-inset-bottom);max-width:460px;margin:0 auto}
   .tab{flex:1;text-align:center;padding:10px 0 6px;font-size:10px;color:var(--text-muted);font-weight:500}
-  .tab.active{color:#fff}
+  .tab.active{color:#3B82F6}
   .tab i{font-size:20px;display:block;margin-bottom:2px}
   .hidden{display:none}
 
@@ -346,6 +358,26 @@ async function api(path, opts = {}) {
 function fmt(n){ return (n||0).toLocaleString("ru-RU") + " ₽"; }
 function haptic(type="light"){ try{ tg.HapticFeedback.impactOccurred(type); }catch(e){} }
 function initials(name){ return (name||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase(); }
+
+function buildWaveSvg(values, activeIdx, maxVal, lineColor){
+  const w = 300, h = 44, n = values.length, pad = 4;
+  const stepX = (w - pad*2) / (n - 1);
+  const pts = values.map((v, i) => {
+    const x = pad + i*stepX;
+    const y = h - pad - ((v||0) / maxVal) * (h - pad*2);
+    return [x, y];
+  });
+  let d = `M ${pts[0][0]} ${pts[0][1]}`;
+  for (let i=0;i<pts.length-1;i++){
+    const [x0,y0]=pts[i], [x1,y1]=pts[i+1];
+    const mx=(x0+x1)/2;
+    d += ` C ${mx} ${y0}, ${mx} ${y1}, ${x1} ${y1}`;
+  }
+  const dots = pts.map(([x,y],i) => i<=activeIdx
+    ? `<circle cx="${x}" cy="${y}" r="${i===activeIdx?4:2}" fill="${lineColor}" ${i===activeIdx?`stroke="rgba(255,255,255,0.35)" stroke-width="3"`:''}/>`
+    : "").join("");
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" opacity="0.9"/>${dots}</svg>`;
+}
 function paymentLabel(c){
   if (c.payment_split) return Object.entries(c.payment_split).map(([k,v]) => `${k} ${v}₽`).join(" + ");
   return c.payment;
@@ -483,13 +515,8 @@ async function renderHome(){
     weekTotals.push(byDate[key] || 0);
   }
   const maxVal = Math.max(1, ...weekTotals);
-  const bars = dayLetters.map((_, i) => {
-    if (i > todayIdx) return `<div class="bar" style="height:4px;opacity:0.25"></div>`;
-    const v = weekTotals[i] || 0;
-    const h = Math.max(6, Math.round((v / maxVal) * 36));
-    return `<div class="bar ${i===todayIdx?'today':''}" style="height:${h}px"></div>`;
-  }).join("");
-  const labels = dayLetters.map((d,i) => `<span class="${i===todayIdx?'today':''}">${d}</span>`).join("");
+  const waveSvg = buildWaveSvg(weekTotals, todayIdx, maxVal, "#fff");
+  const labels = dayLetters.map((d,i) => `<span class="${i===todayIdx?'today':''}" style="${i>todayIdx?'opacity:0.35':''}">${d}</span>`).join("");
 
   const prevAvg = weekTotals.slice(0, -1).reduce((a,b)=>a+b,0) / Math.max(1, weekTotals.length - 1);
   const trendPct = prevAvg > 0 ? Math.round(((summary.total - prevAvg) / prevAvg) * 100) : null;
@@ -512,7 +539,7 @@ async function renderHome(){
         <div class="row1"><p class="lbl">Касса сегодня</p></div>
         <div class="amount-row"><p class="amount">${fmt(summary.total)}</p>${trendPill}</div>
         <p class="sub">${BRANCH} · ${session.date || ""}</p>
-        <div class="spark">${bars}</div>
+        <div class="wave-chart">${waveSvg}</div>
         <div class="spark-labels">${labels}</div>
       </div>
       <div class="stat2">
@@ -547,6 +574,16 @@ async function renderHome(){
 }
 let HOME_CARS = [];
 let HOME_IDX = 0;
+window.toggleHomeCarStatus = async (num, currentStatus) => {
+  haptic("medium");
+  const next = currentStatus === "done" ? "in_progress" : "done";
+  try {
+    await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}/status`, { method: "PATCH", body: JSON.stringify({ status: next }) });
+    const car = HOME_CARS.find(c => c.num === num);
+    if (car) car.status = next;
+    renderHomeSwipeCard();
+  } catch(e){}
+};
 function renderHomeSwipeCard(){
   const wrap = document.getElementById("home-swipe-wrap");
   if (!wrap) return;
@@ -555,13 +592,17 @@ function renderHomeSwipeCard(){
   if (HOME_IDX >= HOME_CARS.length) HOME_IDX = 0;
   const c = HOME_CARS[HOME_IDX];
   const dots = HOME_CARS.slice(0, 8).map((_, i) => `<span class="${i===HOME_IDX?'on':''}"></span>`).join("");
+  const cStatus = c.status || "done";
+  const cStatusLabel = cStatus === "done" ? "Оплачено" : "В работе";
+  const cStatusColor = cStatus === "done" ? "#22C55E" : "#F97316";
   wrap.innerHTML = `
     <div class="swipe-card" id="home-swipe-el">
       <span class="counter">${HOME_IDX+1}/${HOME_CARS.length}</span>
       <p class="car-name">${c.car || "Машина"}</p>
       <p class="car-sub">${c.employee} · ${c.service}</p>
       <p class="car-price">${fmt(c.price)}</p>
-      <span class="del" style="display:inline-block;margin-top:6px" onclick="uiCarQuick(${c.num})">Удалить</span>
+      <span onclick="toggleHomeCarStatus(${c.num},'${cStatus}')" style="display:inline-block;margin-top:8px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${cStatusColor}22;color:${cStatusColor}">${cStatusLabel}</span>
+      <span class="del" style="display:inline-block;margin-top:6px;margin-left:8px" onclick="uiCarQuick(${c.num})">Удалить</span>
     </div>
     <div class="swipe-nav">
       <button onclick="homeSwipeStep(-1)"><i class="ti ti-chevron-left"></i></button>
@@ -868,12 +909,47 @@ async function renderReports(){
     api(`/api/reports/today?branch=${encodeURIComponent(BRANCH)}`),
     api(`/api/reports/week?branch=${encodeURIComponent(BRANCH)}`),
   ]);
+  const dayLetters = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  const now = new Date();
+  const todayIdx = (now.getDay() + 6) % 7;
+  const byDate = {};
+  (week.days || []).forEach(d => { byDate[d.date] = d.total; });
+  const weekTotals = [];
+  for (let i = 0; i <= todayIdx; i++) {
+    const dt = new Date(now); dt.setDate(now.getDate() - (todayIdx - i));
+    const key = dt.toLocaleDateString("ru-RU").split(".").map((p,idx)=>idx<2?p.padStart(2,"0"):p).join(".");
+    weekTotals.push(byDate[key] || 0);
+  }
+  const maxVal = Math.max(1, ...weekTotals);
+  const revenueWave = buildWaveSvg(weekTotals, todayIdx, maxVal, "#fff");
+  const carsToday = today.session.cars.length;
+  const avgCheck = carsToday ? Math.round(today.summary.grand_total / carsToday) : 0;
+  const avgWave = buildWaveSvg(weekTotals.map(v=>v||1), todayIdx, maxVal, "#fff");
+  const yestTotal = week.days.length ? week.days[week.days.length-1]?.total || 0 : 0;
+  const trendRevenue = yestTotal > 0 ? Math.round(((today.summary.grand_total - yestTotal)/yestTotal)*100) : null;
+
   el.innerHTML = `
     <div class="back-header"><span style="font-size:18px;font-weight:700">Отчёты</span></div>
     <div class="content">
-      <p class="label">Сегодня</p>
-      <p style="font-size:30px;font-weight:700;margin:0 0 14px">${fmt(today.summary.grand_total)}</p>
-      <div class="tile-grid" style="margin-bottom:16px">
+      <div class="segmented"><div class="seg active">Сегодня</div><div class="seg" onclick="switchTab('workers')">Неделя</div><div class="seg" onclick="openMonthReport()">Месяц</div></div>
+
+      <div class="hero-card">
+        <div class="row1"><p class="lbl">Выручка сегодня</p>${trendRevenue!==null?`<span class="pill">${trendRevenue>=0?'+':''}${trendRevenue}% от вчера</span>`:''}</div>
+        <p class="amount">${fmt(today.summary.grand_total)}</p>
+        <div class="wave-chart">${revenueWave}</div>
+      </div>
+      <div class="hero-card green" style="margin-top:12px">
+        <div class="row1"><p class="lbl">Средний чек</p></div>
+        <p class="amount">${fmt(avgCheck)}</p>
+        <div class="wave-chart">${avgWave}</div>
+      </div>
+
+      <div class="stat-grid" style="margin-top:12px">
+        <div class="stat-card"><p><i class="ti ti-cash" style="margin-right:4px"></i>Наличные</p><p>${fmt(today.summary.cash)}</p></div>
+        <div class="stat-card"><p><i class="ti ti-credit-card" style="margin-right:4px"></i>Карта</p><p>${fmt(today.summary.visa + today.summary.beznal)}</p></div>
+      </div>
+
+      <div class="tile-grid" style="margin-top:16px;margin-bottom:16px">
         <div class="tile" onclick="switchTab('day-report')"><i class="ti ti-chart-donut" aria-hidden="true"></i><p>Общий отчёт</p></div>
         <div class="tile" onclick="openMonthReport()"><i class="ti ti-calendar-event" aria-hidden="true"></i><p>За месяц</p></div>
         ${ME.is_owner ? `<div class="tile" onclick="openAllReport()"><i class="ti ti-building-store" aria-hidden="true"></i><p>Все филиалы</p></div>` : `<div></div>`}
@@ -978,6 +1054,16 @@ async function renderAllCars(){
 window.setCarsEmpFilter = (w) => { haptic(); ALL_CARS_FILTER_EMP = w; renderCarsList(); };
 window.clearCarsSearch = () => { document.getElementById("cars-search").value = ""; filterAllCars(); };
 window.filterAllCars = () => renderCarsList();
+window.toggleCarStatus = async (num, currentStatus) => {
+  haptic("medium");
+  const next = currentStatus === "done" ? "in_progress" : "done";
+  try {
+    await api(`/api/car/${encodeURIComponent(BRANCH)}/${num}/status`, { method: "PATCH", body: JSON.stringify({ status: next }) });
+    const car = ALL_CARS.find(c => c.num === num);
+    if (car) car.status = next;
+    renderCarsList();
+  } catch(e){}
+};
 function renderCarsList(){
   const wrap = document.getElementById("cars-list");
   const searchWrap = document.getElementById("cars-search-wrap");
@@ -989,16 +1075,24 @@ function renderCarsList(){
 
   if (!list.length) { wrap.innerHTML = `<p class="empty">Ничего не найдено</p>`; return; }
 
-  wrap.innerHTML = list.map(c => `
+  wrap.innerHTML = list.map(c => {
+    const status = c.status || "done";
+    const statusLabel = status === "done" ? "Оплачено" : "В работе";
+    const statusColor = status === "done" ? "#22C55E" : "#F97316";
+    return `
     <div class="swipe-item" data-num="${c.num}">
       <div class="swipe-bg" onclick="delCar(${c.num})"><i class="ti ti-trash"></i></div>
       <div class="swipe-fg">
         <div class="row" style="cursor:pointer" data-longpress-num="${c.num}">
           <div><p class="name">${(c.time?c.time+" · ":"")}${c.car || "Машина"} · ${c.service}</p><p class="sub">${c.employee} · ${paymentLabel(c)}</p></div>
-          <div class="meta"><p class="price">${fmt(c.price)}</p></div>
+          <div class="meta">
+            <p class="price">${fmt(c.price)}</p>
+            <span onclick="event.stopPropagation();toggleCarStatus(${c.num},'${status}')" style="display:inline-block;margin-top:3px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:${statusColor}22;color:${statusColor}">${statusLabel}</span>
+          </div>
         </div>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   wrap.querySelectorAll(".swipe-item").forEach(item => bindSwipeToDelete(item));
   wrap.querySelectorAll("[data-longpress-num]").forEach(row => bindLongPress(row, () => openCarQuickMenu(parseInt(row.dataset.longpressNum, 10))));
@@ -1149,11 +1243,11 @@ async function renderSettings(){
     <div class="content">
       <p class="label">Только для админа · ${BRANCH}</p>
       <div class="card">
-        <div class="row link" onclick="uiSetBranchAdmin()"><span class="name"><i class="ti ti-shield-star icon-badge"></i>Назначить админа филиала</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiSetBranchAdmin()"><span class="name"><i class="ti ti-shield-star icon-badge blue"></i>Назначить админа филиала</span><i class="ti ti-chevron-right chevron"></i></div>
         ${ME.is_owner ? `
-        <div class="row link" onclick="uiAddUser()"><span class="name"><i class="ti ti-lock-access icon-badge"></i>Добавить доступ пользователю</span><i class="ti ti-chevron-right chevron"></i></div>
-        <div class="row link" onclick="uiRemoveUser()"><span class="name"><i class="ti ti-lock-open icon-badge"></i>Убрать доступ пользователя</span><i class="ti ti-chevron-right chevron"></i></div>
-        <div class="row link" onclick="uiListUsers()"><span class="name"><i class="ti ti-users icon-badge"></i>Список пользователей</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
+        <div class="row link" onclick="uiAddUser()"><span class="name"><i class="ti ti-lock-access icon-badge green"></i>Добавить доступ пользователю</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiRemoveUser()"><span class="name"><i class="ti ti-lock-open icon-badge red"></i>Убрать доступ пользователя</span><i class="ti ti-chevron-right chevron"></i></div>
+        <div class="row link" onclick="uiListUsers()"><span class="name"><i class="ti ti-users icon-badge purple"></i>Список пользователей</span><i class="ti ti-chevron-right chevron"></i></div>` : ""}
       </div>
       <p class="group-label">Сотрудники (${workers.length})</p>
       <div class="tag-row">
