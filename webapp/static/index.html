@@ -1176,22 +1176,12 @@ window.uiAddIncome=()=>{
   const amountStr=window.prompt("Сумма (₽):","500");
   const amount=parseInt((amountStr||"").replace(/[^\d]/g,""),10);
   if(!amount) return tg.showAlert("Введи корректную сумму");
-  tg.showPopup({
-    title:"Способ оплаты",
-    message:`${name} — ${fmt(amount)}₽`,
-    buttons:[
-      {id:"нал",type:"default",text:"💵 Нал"},
-      {id:"visa",type:"default",text:"💳 Visa"},
-      {id:"безнал",type:"default",text:"🏦 Безнал"},
-      {id:"split",type:"default",text:"➗ Разделить"},
-      {id:"cancel",type:"cancel"},
-    ],
-  },(id)=>{
-    if(!id||id==="cancel") return;
-    if(id==="split"){ uiAddIncomeSplit(name,amount); return; }
-    api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount,payment:id})})
-      .then(()=>{haptic("medium");renderHome();}).catch(()=>{});
-  });
+  const payStr=(window.prompt("Способ оплаты: нал / visa / безнал / разделить","нал")||"нал").trim().toLowerCase();
+  if(payStr==="разделить"||payStr==="split"){ uiAddIncomeSplit(name,amount); return; }
+  const PAY_MAP={"нал":"нал","наличка":"нал","visa":"visa","виза":"visa","безнал":"безнал","петрон":"безнал"};
+  const payment=PAY_MAP[payStr]||"нал";
+  api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount,payment})})
+    .then(()=>{haptic("medium");renderHome();}).catch(()=>{tg.showAlert("Не удалось сохранить доход");});
 };
 window.uiAddIncomeSplit=(name,amount)=>{
   const cashStr=window.prompt(`Сколько наличными из ${fmt(amount)}₽?`,"0");
@@ -1207,7 +1197,7 @@ window.uiAddIncomeSplit=(name,amount)=>{
   if(!Object.keys(split).length) return tg.showAlert("Укажи хотя бы одну сумму");
   const total=cash+visa+beznal;
   api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount:total,payment_split:split})})
-    .then(()=>{haptic("medium");renderHome();}).catch(()=>{});
+    .then(()=>{haptic("medium");renderHome();}).catch(()=>{tg.showAlert("Не удалось сохранить доход");});
 };
 window.delIncome=async(idx)=>{
   tg.showConfirm("Удалить доход?",async(ok)=>{
