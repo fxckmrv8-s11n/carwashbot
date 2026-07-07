@@ -143,6 +143,8 @@ class IncomeIn(BaseModel):
     branch: str
     name: str
     amount: int
+    payment: str = "нал"
+    payment_split: Optional[Dict[str, int]] = None
 
 
 class WorkerIn(BaseModel):
@@ -514,7 +516,12 @@ def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default=
 @app.post("/api/income")
 def api_add_income(body: IncomeIn, x_init_data: str = Header(default="")):
     session = get_session(body.branch)
-    session.setdefault("incomes", []).append({"name": body.name, "amount": body.amount})
+    entry = {"name": body.name, "amount": body.amount}
+    if body.payment_split:
+        entry["payment_split"] = body.payment_split
+    else:
+        entry["payment"] = body.payment
+    session.setdefault("incomes", []).append(entry)
     save_sessions()
     log_action(body.branch, "income_add", current_user_id(x_init_data), current_user_name(x_init_data),
                f"{body.name} · +{body.amount}₽")
