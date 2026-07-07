@@ -887,13 +887,24 @@ function switchTab(name, editNum){
 }
 
 async function ensureMe(){
-  ME=ME||await api(`/api/me?branch=${encodeURIComponent(BRANCH||"")}`);
-  const workerOnly = !!ME.is_worker && !ME.is_owner && !ME.is_branch_admin;
+  // ВАЖНО: ME кэшируется по BRANCH — если запросили ME для одного филиала,
+  // а BRANCH сменился, нельзя переиспользовать старый ответ (иначе роль
+  // "протекает" с одного филиала на другой, например мойщик выглядит
+  // админом там, где он не назначен админом).
+  if(!ME || ME.__branch !== BRANCH){
+    ME = await api(`/api/me?branch=${encodeURIComponent(BRANCH||"")}`);
+    ME.__branch = BRANCH;
+  }
+  // Права считаем СТРОГО по текущему филиалу: владелец или назначенный
+  // админ именно этого филиала. Всё остальное — ограниченный доступ
+  // "мойщика", независимо от того, числится ли человек сотрудником
+  // именно этого филиала (по умолчанию — минимум прав, а не максимум).
+  const isPrivileged = !!ME.is_owner || !!ME.is_branch_admin;
   document.getElementById("tab-my-stats")?.classList.toggle("hidden", !ME.is_worker);
   ["tab-home","tab-reports","tab-workers","tab-settings"].forEach(id=>{
-    document.getElementById(id)?.classList.toggle("hidden", workerOnly);
+    document.getElementById(id)?.classList.toggle("hidden", !isPrivileged);
   });
-  if(workerOnly && document.querySelector(".tab.active")?.dataset.tab!=="my-stats"){
+  if(!isPrivileged && document.querySelector(".tab.active")?.dataset.tab!=="my-stats"){
     switchTab("my-stats");
   }
   return ME;
