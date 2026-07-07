@@ -12,7 +12,7 @@ from telegram.ext import ContextTypes
 from sessions import (
     get_session, save_sessions, save_to_archive, reset_session,
     load_users, save_users, add_user, remove_user,
-    get_branch_admin, is_branch_admin, set_branch_admin,
+    get_branch_admin, is_branch_admin, is_branch_worker, get_role, set_branch_admin,
     get_branch_workers, add_branch_worker, remove_branch_worker,
 )
 from config import OWNER_ID, BRANCHES
@@ -205,6 +205,13 @@ async def cb_branch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Привязываем этого пользователя к выбранному филиалу на сегодня.
     context.user_data["current_branch"] = branch
 
+    # Роль считаем заново для КАЖДОГО филиала — мойщик/админ одного филиала
+    # не должен автоматически получать права в другом.
+    role = get_role(user_id, branch)
+    context.user_data["current_role"] = role
+    from handlers.buttons import MAIN_MENU, WORKER_MENU
+    menu = MAIN_MENU if role in ("owner", "admin") else WORKER_MENU
+
     session = get_session(branch)
     is_new_day = session.get("cars") and _is_stale(session)
     if is_new_day:
@@ -218,18 +225,28 @@ async def cb_branch(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📅 {session.get('date','—')} | 🚗 Машин уже: {cars_count}\n\n"
             f"Если хочешь начать новый день поверх текущего — используй кнопку ниже."
         )
-    kb = InlineKeyboardMarkup([[
-        InlineKeyboardButton("🔄 Всё равно начать новый день", callback_data=f"forcenewday_{branch}")
-    ]]) if not is_new_day and session.get("cars") else None
 
-    await query.message.reply_text(text, parse_mode="Markdown", reply_markup=kb)
+    await query.message.reply_text(text, parse_mode="Markdown", reply_markup=menu)
+
+    if not is_new_day and session.get("cars") and role in ("owner", "admin"):
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 Всё равно начать новый день", callback_data=f"forcenewday_{branch}")
+        ]])
+        await query.message.reply_text(
+            "Если хочешь начать новый день поверх текущего — нажми кнопку:",
+            reply_markup=kb)
 
 
 async def cb_force_newday(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Явное подтверждение: архивировать текущую кассу филиала и начать новую."""
+    """Явное подтверждение: архивировать текущую кассу филиала и начать новую.
+    Только для админа филиала/владельца — иначе мойщик мог бы случайно
+    (или намеренно) обнулить общую кассу филиала."""
     query  = update.callback_query
-    await query.answer()
     branch = query.data.replace("forcenewday_", "")
+    if get_role(query.from_user.id, branch) not in ("owner", "admin"):
+        await query.answer("⛔ Только админ филиала может начать новый день.", show_alert=True)
+        return
+    await query.answer()
     session = get_session(branch)
     if session.get("cars"):
         save_to_archive(branch, session)

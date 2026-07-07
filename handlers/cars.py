@@ -383,9 +383,14 @@ async def cb_delete_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── /edit и /delete как текстовые команды (для тех, кто привык) ──────────
 
 async def edit_car_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers.admin import is_allowed, get_role
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Только админ филиала может редактировать машины."); return
     session = get_session(branch)
     args    = context.args
     if len(args) < 2:
@@ -401,9 +406,14 @@ async def edit_car_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def delete_car_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers.admin import is_allowed, get_role
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Только админ филиала может удалять машины."); return
     session = get_session(branch)
     if not context.args:
         await update.message.reply_text("Формат: `/delete 3`", parse_mode="Markdown"); return

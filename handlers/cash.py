@@ -66,9 +66,14 @@ async def handle_loyal_text(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def loyal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Текстовая команда — оставлена для тех, кто привык."""
+    from handlers.admin import is_allowed, get_role
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Только админ филиала может добавлять лояльность."); return
     session = get_session(branch)
     args    = context.args
     if len(args) < 2:
@@ -208,10 +213,19 @@ async def _save_income(update: Update, context: ContextTypes.DEFAULT_TYPE, text:
 # ── /summary, /list ────────────────────────────────────────────────────────
 
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    branch = get_current_branch(context)
+    from handlers.admin import is_allowed, get_role
+    user_id = update.effective_user.id if update.message else update.callback_query.from_user.id
     msg = update.message or update.callback_query.message
+    if not is_allowed(user_id):
+        await msg.reply_text("⛔ Нет доступа."); return
+    branch = get_current_branch(context)
     if not branch:
         await msg.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(user_id, branch) not in ("owner", "admin"):
+        await msg.reply_text(
+            "⛔ Общая сводка кассы доступна только администратору филиала.\n"
+            "Свою зарплату смотри в Mini App: /app")
+        return
     session = get_session(branch)
     if not session["cars"] and not session.get("products"):
         await msg.reply_text("📋 Нет данных."); return
@@ -259,8 +273,12 @@ async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    branch = get_current_branch(context)
+    from handlers.admin import is_allowed
+    user_id = update.effective_user.id if update.message else update.callback_query.from_user.id
     msg = update.message or update.callback_query.message
+    if not is_allowed(user_id):
+        await msg.reply_text("⛔ Нет доступа."); return
+    branch = get_current_branch(context)
     if not branch:
         await msg.reply_text("⚠️ Сначала выбери филиал: /newday"); return
     session = get_session(branch)

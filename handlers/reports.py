@@ -15,10 +15,19 @@ MONTHS_RU = {
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    branch = get_current_branch(context)
+    from handlers.admin import is_allowed, get_role
+    user_id = update.effective_user.id if update.message else update.callback_query.from_user.id
     msg = update.message or update.callback_query.message
+    if not is_allowed(user_id):
+        await msg.reply_text("⛔ Нет доступа."); return
+    branch = get_current_branch(context)
     if not branch:
         await msg.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(user_id, branch) not in ("owner", "admin"):
+        await msg.reply_text(
+            "⛔ Общая статистика филиала доступна только администратору.\n"
+            "Свою личную статистику и зарплату смотри в Mini App: /app")
+        return
     session = get_session(branch)
     if not session["cars"] and not session.get("products"):
         await msg.reply_text("📋 Нет данных за сегодня."); return
@@ -44,9 +53,14 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def week_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers.admin import is_allowed, get_role
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Отчёты доступны только администратору филиала."); return
     await _send_week_report(update.message, branch)
 
 
@@ -87,9 +101,14 @@ async def _send_week_report(msg, branch: str):
 
 
 async def month_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers.admin import is_allowed, get_role
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Отчёты доступны только администратору филиала."); return
     args = context.args
     if not args:
         await update.message.reply_text("Пример: `/month июнь` или `/month июнь 2026`",
@@ -123,9 +142,14 @@ async def month_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers.admin import is_allowed, get_role
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Отчёты доступны только администратору филиала."); return
     if not context.args:
         await update.message.reply_text("Пример: `/report 28.06.2026`", parse_mode="Markdown"); return
     date_str       = context.args[0]

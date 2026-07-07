@@ -5,7 +5,7 @@ from handlers.cash import show_summary, show_list, loyal_start, expense_prompt
 from handlers.reports import stats_command, _send_week_report, allreport_command
 from handlers.admin import (
     select_branch, cb_branch, cb_force_newday, is_allowed, cb_approve_deny,
-    get_current_branch, is_branch_admin,
+    get_current_branch, is_branch_admin, get_role,
 )
 from handlers.cars import (
     cb_employee, cb_body_type, cb_service, cb_payment, step_employee,
@@ -26,6 +26,32 @@ MAIN_MENU = ReplyKeyboardMarkup([
     [KeyboardButton("⚙️ Настройки"),       KeyboardButton("📖 Инструкция")],
 ], resize_keyboard=True)
 
+# Урезанное меню для мойщика: только просмотр своего списка машин/статистики
+# (зарплата видна внутри статистики) — никаких кнопок добавления/удаления/
+# кассовых операций и настроек филиала. Полную личную сводку (именно "моя
+# смена") мойщик смотрит в Mini App (/app), а тут — быстрый доступ в чате.
+WORKER_MENU = ReplyKeyboardMarkup([
+    [KeyboardButton("📋 Список")],
+    [KeyboardButton("📖 Инструкция")],
+], resize_keyboard=True)
+
+# Текстовые пункты меню, доступные мойщику (не админу/владельцу филиала).
+# "Список" — все машины за смену (нейтральные данные, без разбивки кассы).
+# Личную статистику/зарплату мойщик смотрит только в Mini App (/api/my-stats
+# уже правильно ограничен там — видно только свои машины и свою зарплату).
+WORKER_ALLOWED_TEXT = {"📋 Список", "📖 Инструкция"}
+# Callback-и, доступные мойщику напрямую по имени данных.
+WORKER_ALLOWED_CALLBACKS = {"cmd_list"}
+# Префиксы callback-данных, которые должны проходить всегда — они либо
+# нужны всем (выбор филиала), либо гарантированно самопроверяются
+# на права владельца/админа внутри своих обработчиков.
+ALWAYS_ALLOWED_PREFIXES = ("branch_", "approve_", "deny_", "forcenewday_")
+
+
+def _deny_text():
+    return ("⛔ Эта функция доступна только администратору филиала.\n"
+            "Для просмотра своей смены, машин и зарплаты открой Mini App: /app")
+
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -33,6 +59,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not is_allowed(query.from_user.id):
         await query.answer("⛔ Нет доступа.", show_alert=True); return
+
+    branch = get_current_branch(context)
+    role = get_role(query.from_user.id, branch)
+    if (role not in ("owner", "admin")
+            and data not in WORKER_ALLOWED_CALLBACKS
+            and not data.startswith(ALWAYS_ALLOWED_PREFIXES)):
+        await query.answer("⛔ Доступно только администратору филиала.", show_alert=True)
+        return
 
     await query.answer()
 
@@ -221,6 +255,17 @@ async def handle_settings_text_step(update: Update, context: ContextTypes.DEFAUL
 async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     text = update.message.text
     branch = get_current_branch(context)
+    role = get_role(update.effective_user.id, branch)
+
+    if role not in ("owner", "admin") and text not in WORKER_ALLOWED_TEXT:
+        # Мойщик мог получить это меню, если бот перезапускался и клавиатура
+        # не обновилась — на всякий случай блокируем и на уровне текста.
+        if text in ("📋 Список", "📊 Статистика", "📖 Инструкция", "⚙️ Настройки",
+                    "🚗 Добавить машину", "🧴 Добавить товар", "💰 Сводка", "📄 PDF",
+                    "🗂 Отчёты", "💸 Расход"):
+            await update.message.reply_text(_deny_text())
+            return True
+        return False
 
     if text == "🚗 Добавить машину":
         if not branch:
