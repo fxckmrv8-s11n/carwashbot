@@ -724,6 +724,7 @@ html[data-theme="light"] .theme-switch .topt.active{box-shadow:0 1px 4px rgba(0,
   <div class="tab active" data-tab="home"><i class="ti ti-home"></i>Главная</div>
   <div class="tab" data-tab="reports"><i class="ti ti-chart-bar"></i>Отчёты</div>
   <div class="tab" data-tab="workers"><i class="ti ti-users"></i>Мойщики</div>
+  <div class="tab hidden" id="tab-my-stats" data-tab="my-stats"><i class="ti ti-wallet"></i>Моя смена</div>
   <div class="tab" data-tab="settings"><i class="ti ti-settings"></i>Настройки</div>
 </div>
 
@@ -875,11 +876,16 @@ function switchTab(name, editNum){
   if(name==="add") renderAdd(editNum);
   if(name==="reports") renderReports();
   if(name==="workers") renderWorkers();
+  if(name==="my-stats") renderMyStats();
   if(name==="settings") renderSettings();
   if(name==="schedule") renderScheduleWeek();
 }
 
-async function ensureMe(){ ME=ME||await api(`/api/me?branch=${encodeURIComponent(BRANCH||"")}`); return ME; }
+async function ensureMe(){
+  ME=ME||await api(`/api/me?branch=${encodeURIComponent(BRANCH||"")}`);
+  document.getElementById("tab-my-stats")?.classList.toggle("hidden", !ME.is_worker);
+  return ME;
+}
 
 /* ─── BRANCH PICKER ──────────────────────────────────────────────────────── */
 async function ensureBranch(){
@@ -927,6 +933,7 @@ window.pickBranch=(b)=>{ BRANCH=b; ME=null; haptic("medium"); switchTab("home");
 /* ─── ГЛАВНАЯ ────────────────────────────────────────────────────────────── */
 async function renderHome(){
   if(!BRANCH) return ensureBranch();
+  ensureMe();
   const el=document.getElementById("view-home");
   el.innerHTML=`<div class="topbar"><div><div class="topbar-title">Главная</div><div class="topbar-sub" onclick="switchBranch()">${BRANCH}<i class="ti ti-chevron-down"></i></div></div><div class="bell-btn" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div></div>${skeleton(4)}`;
   const [{session,summary},{workers,schedule},week]=await Promise.all([
@@ -1772,6 +1779,93 @@ async function renderWorkers(){
   attachPullToRefresh("view-workers",renderWorkers);
 }
 
+/* ─── МОЯ СМЕНА (личный кабинет мойщика) ─────────────────────────────────── */
+let MY_STATS_PERIOD = "today";
+async function renderMyStats(){
+  const el=document.getElementById("view-my-stats");
+  if(!BRANCH){el.innerHTML=`<div class="px" style="padding-top:20px"><p class="empty">Сначала выбери филиал</p></div>`;return;}
+  el.innerHTML=`<div class="topbar"><div class="topbar-title">Моя смена</div></div>${skeleton(3)}`;
+
+  let data;
+  try{
+    data = await api(`/api/my-stats?branch=${encodeURIComponent(BRANCH)}&period=${MY_STATS_PERIOD}`);
+  }catch(e){
+    el.innerHTML=`<div class="topbar"><div class="topbar-title">Моя смена</div></div><div style="padding:24px 16px"><p class="empty">Не удалось загрузить данные.<br>Убедись, что тебя добавили сотрудником филиала.</p></div>`;
+    return;
+  }
+
+  const periods=[["today","Сегодня"],["week","Неделя"],["month","Месяц"]];
+  const tabsHtml=`<div class="segmented">${periods.map(([k,label])=>
+    `<div class="seg${MY_STATS_PERIOD===k?" active":""}" onclick="uiMyStatsPeriod('${k}')">${label}</div>`
+  ).join("")}</div>`;
+
+  if(MY_STATS_PERIOD==="today"){
+    const s=data.stats;
+    el.innerHTML=`
+      <div class="topbar">
+        <div><div class="topbar-title">Моя смена</div><div class="topbar-sub">${data.name} · ${s.date||""}</div></div>
+      </div>
+      ${tabsHtml}
+      <div class="home-stat-row">
+        <div class="home-stat-box">
+          <span><i class="ti ti-wallet"></i>Заработано сегодня</span>
+          <b>${fmt(s.salary)}</b>
+        </div>
+        <div class="home-stat-box">
+          <span><i class="ti ti-car"></i>Машин помыл</span>
+          <b>${s.cars}</b>
+        </div>
+      </div>
+      <div class="section-label">Оборот по твоим машинам</div>
+      <div class="card"><div style="padding:16px"><b>${fmt(s.revenue)}</b><div class="wc-sub" style="margin-top:4px">Полная стоимость услуг (до вычета твоего процента)</div></div></div>
+      <div style="height:20px"></div>
+    `;
+    attachPullToRefresh("view-my-stats",renderMyStats);
+    return;
+  }
+
+  const days=data.days||[];
+  const maxSal=Math.max(1,...days.map(d=>d.salary));
+  const wave=days.length?buildWaveSvg(days.map(d=>d.salary),days.length-1,maxSal,"var(--accent)"):"";
+
+  el.innerHTML=`
+    <div class="topbar">
+      <div><div class="topbar-title">Моя смена</div><div class="topbar-sub">${data.name} · ${data.from} – ${data.to}</div></div>
+    </div>
+    ${tabsHtml}
+    <div class="home-stat-row">
+      <div class="home-stat-box">
+        <span><i class="ti ti-wallet"></i>Заработано</span>
+        <b>${fmt(data.total_salary)}</b>
+      </div>
+      <div class="home-stat-box">
+        <span><i class="ti ti-car"></i>Машин всего</span>
+        <b>${data.total_cars}</b>
+      </div>
+    </div>
+    ${wave?`<div class="section-label">Динамика зарплаты по дням</div><div class="card" style="padding:16px">${wave}</div>`:""}
+    <div class="section-label">По дням</div>
+    <div class="card">
+      ${days.length?days.slice().reverse().map(d=>`
+        <div class="worker-card">
+          <div class="wc-top">
+            <div class="wc-info">
+              <div>
+                <div class="wc-name">${d.date}</div>
+                <div class="wc-sub">${d.cars} машин</div>
+              </div>
+            </div>
+            <div class="wc-sal">${fmt(d.salary)}</div>
+          </div>
+        </div>
+      `).join(""):`<p class="empty">Нет данных за этот период</p>`}
+    </div>
+    <div style="height:20px"></div>
+  `;
+  attachPullToRefresh("view-my-stats",renderMyStats);
+}
+window.uiMyStatsPeriod=(p)=>{ MY_STATS_PERIOD=p; haptic(); renderMyStats(); };
+
 /* ─── ГРАФИК НА НЕДЕЛЮ ───────────────────────────────────────────────────── */
 async function renderScheduleWeek(){
   const el=document.getElementById("view-schedule");
@@ -1971,7 +2065,7 @@ window.uiListUsers=async()=>{
 
 /* ─── ДОПОЛНИТЕЛЬНЫЕ ЭКРАНЫ ──────────────────────────────────────────────── */
 document.getElementById("view-home").insertAdjacentHTML("afterend",
-  `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div>`
+  `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div><div id="view-my-stats" class="hidden"></div>`
 );
 const _switchTab=switchTab;
 switchTab=function(name,editNum){
