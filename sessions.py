@@ -267,10 +267,40 @@ def get_branch_admin_name(branch: str) -> str:
 
 
 def is_branch_admin(user_id: int, branch: str) -> bool:
-    """Владелец (OWNER_ID) — админ всех филиалов."""
+    """Владелец (OWNER_ID) — админ всех филиалов.
+    user_id обязателен и не может быть 0/пустым — иначе не назначенный
+    admin (0 по умолчанию в branches_config.json) случайно совпадёт
+    с неопознанным пользователем (0) и даст ему права админа."""
+    if not user_id:
+        return False
     if user_id == OWNER_ID:
         return True
-    return get_branch_admin(branch) == user_id
+    branch_admin = get_branch_admin(branch)
+    return bool(branch_admin) and branch_admin == user_id
+
+
+def is_branch_worker(user_id: int, branch: str) -> bool:
+    """Мойщик ли этот пользователь ИМЕННО в этом филиале (сверяем его имя
+    из белого списка со списком сотрудников филиала)."""
+    if not user_id or not branch:
+        return False
+    users = load_users()
+    name = users.get(str(user_id))
+    if not name:
+        return False
+    return name in get_branch_workers(branch)
+
+
+def get_role(user_id: int, branch: str | None) -> str:
+    """Роль пользователя СТРОГО для конкретного филиала: 'owner' / 'admin' /
+    'worker'. По умолчанию (нет данных, филиал не указан, пользователь не
+    числится админом/сотрудником именно этого филиала) — 'worker', то есть
+    минимальные права. Роль никогда не "утекает" с одного филиала на другой."""
+    if user_id == OWNER_ID:
+        return "owner"
+    if branch and is_branch_admin(user_id, branch):
+        return "admin"
+    return "worker"
 
 
 def set_branch_admin(branch: str, user_id: int):

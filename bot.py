@@ -35,10 +35,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👋 Привет! У тебя пока нет доступа.\n✏️ Напиши своё имя — отправлю заявку владельцу:")
         return
     branch = get_current_branch(context)
+    from handlers.admin import get_role
+    from handlers.buttons import MAIN_MENU as _MAIN_MENU, WORKER_MENU as _WORKER_MENU
+    role = get_role(update.effective_user.id, branch)
+    menu = _MAIN_MENU if role in ("owner", "admin") else _WORKER_MENU
     branch_line = f"\n📍 Текущий филиал: *{branch}*" if branch else "\nНачни с /newday чтобы выбрать филиал."
     await update.message.reply_text(
         f"👋 *Касса автомойки запущена!*\n━━━━━━━━━━━━━━━━{branch_line}",
-        parse_mode="Markdown", reply_markup=MAIN_MENU)
+        parse_mode="Markdown", reply_markup=menu)
 
 
 async def newday_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,6 +63,9 @@ async def pdf_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     branch = get_current_branch(context)
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    from handlers.admin import get_role
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ PDF кассы доступен только администратору филиала."); return
     session = get_session(branch)
     if not session["cars"] and not session.get("products"):
         await update.message.reply_text("📋 Нет данных."); return
@@ -84,6 +91,8 @@ async def pdf_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def services_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет доступа."); return
     from config import SERVICES, BODY_TYPE_ORDER, BODY_TYPES, get_service_price
     lines = ["🔧 *Прайс-лист:*\n"]
     header = "Услуга".ljust(28) + " | " + " / ".join(BODY_TYPES[b][:4] for b in BODY_TYPE_ORDER)
@@ -117,6 +126,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await handle_settings_text_step(update, context): return
 
     branch = get_current_branch(context)
+
+    from handlers.admin import get_role
+    if get_role(update.effective_user.id, branch) not in ("owner", "admin"):
+        await update.message.reply_text(
+            "⛔ Добавлять машины/расходы можно только через админа филиала.\n"
+            "Свою смену, машины и зарплату смотри в Mini App: /app")
+        return
+
     if not branch:
         await update.message.reply_text(
             "⚠️ Сначала выбери филиал: /newday\n\n"
@@ -182,6 +199,8 @@ def main():
     WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip()
 
     async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not is_allowed(update.effective_user.id):
+            await update.message.reply_text("⛔ Нет доступа."); return
         if not WEBAPP_URL:
             await update.message.reply_text("⚠️ WEBAPP_URL не задан в .env — сначала задеплой webapp/ и укажи адрес.")
             return
