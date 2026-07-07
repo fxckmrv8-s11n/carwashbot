@@ -891,23 +891,35 @@ async function ensureBranch(){
     el.innerHTML=`<div class="topbar"><div><div class="topbar-title">ClaudeFormula 2.0</div></div></div><div style="padding:24px 16px"><p class="empty">Не удалось связаться с сервером.<br>Проверь подключение.</p><div class="btn-wrap"><button class="btn secondary" onclick="location.reload()">Обновить</button></div></div>`;
     return;
   }
-  const amounts=[23900,18700,16400,14200,12800];
-  const cars=[12,8,6,5,4];
+  let branchStats = [];
+  try {
+    const r = await api("/api/branches/summary");
+    branchStats = r.branches || [];
+  } catch(e){}
+  const statByBranch = {};
+  branchStats.forEach(b => { statByBranch[b.branch] = b; });
+
   el.innerHTML=`
     <div class="topbar"><div><div class="topbar-title">Выбери филиал</div></div></div>
     <div style="padding:8px 0">
-      ${CFG.branches.map((b,i)=>`
+      ${CFG.branches.map((b)=>{
+        const st = statByBranch[b] || { total: 0, cars: 0, trend: [0,0,0,0,0] };
+        const maxT = Math.max(1, ...st.trend);
+        const pts = st.trend.map((v,i) => `${i*20},${30 - Math.round((v/maxT)*26)}`).join(" ");
+        const trendUp = st.trend[st.trend.length-1] >= (st.trend[0] || 0);
+        return `
         <div class="branch-card" onclick="pickBranch('${b.replace(/'/g,"\\'")}')">
           <div>
             <div class="bc-pin"><i class="ti ti-map-pin"></i>${b}</div>
-            <div class="bc-amount">${fmt(amounts[i]||0)}</div>
-            <div class="bc-sub">${cars[i]||0} машин сегодня</div>
+            <div class="bc-amount">${fmt(st.total)}</div>
+            <div class="bc-sub">${st.cars} машин сегодня</div>
           </div>
           <div class="bc-right">
-            <i class="ti ti-trending-up bc-trend"></i>
-            <svg class="bc-mini-chart" viewBox="0 0 80 30"><polyline points="0,25 20,18 40,22 60,10 80,14" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <i class="ti ${trendUp?'ti-trending-up':'ti-trending-down'} bc-trend" style="color:${trendUp?'var(--green)':'var(--red)'}"></i>
+            <svg class="bc-mini-chart" viewBox="0 0 80 30"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-        </div>`).join("")}
+        </div>`;
+      }).join("")}
     </div>`;
 }
 window.pickBranch=(b)=>{ BRANCH=b; ME=null; haptic("medium"); switchTab("home"); };
@@ -1650,7 +1662,10 @@ async function renderWorkers(){
   el.innerHTML=`
     <div class="topbar">
       <div class="topbar-title">Мойщики</div>
-      <div class="bell-btn" onclick="uiWorkersMenu()"><i class="ti ti-dots"></i></div>
+    </div>
+
+    <div class="btn-wrap" style="padding-top:0">
+      <button class="btn secondary btn-sm" onclick="switchTab('schedule')"><i class="ti ti-calendar-week"></i>График работы</button>
     </div>
 
     <div class="home-stat-row">
