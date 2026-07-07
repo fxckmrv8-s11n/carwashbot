@@ -273,11 +273,16 @@ def api_schedule_week(branch: str, monday: str = ""):
 def api_me(branch: str = "", x_init_data: str = Header(default="")):
     user = auth_optional(x_init_data)
     uid = int(user.get("id", 0))
+    users = load_users()
+    employee_name = users.get(str(uid), "")
+    is_worker = bool(employee_name) and branch and employee_name in get_branch_workers(branch)
     return {
         "user_id": uid,
         "name": user.get("first_name", ""),
         "is_owner": uid == OWNER_ID,
         "is_branch_admin": is_branch_admin(uid, branch) if branch else False,
+        "employee_name": employee_name,
+        "is_worker": is_worker,
     }
 
 
@@ -627,6 +632,81 @@ def api_report_month(branch: str, month: str, year: int = 0):
             week_sal.setdefault(emp, {})
             week_sal[emp][wk] = week_sal[emp].get(wk, 0) + sal
     return {"month": month, "year": year, "grand_total": grand, "by_worker": week_sal}
+
+
+def _employee_name_from_init(x_init_data: str) -> str:
+    uid = current_user_id(x_init_data)
+    return load_users().get(str(uid), "")
+
+
+def _my_day_stats(day_data: dict, name: str) -> dict:
+    """Статистика одного мойщика за один день (сессия сегодня или день из архива)."""
+    s = calculate_summary(day_data)
+    my_cars = [c for c in day_data.get("cars", []) if c.get("employee") == name]
+    return {
+        "cars": len(my_cars),
+        "salary": s["washer_salaries"].get(name, 0),
+        "revenue": sum(c["price"] for c in my_cars),
+    }
+
+
+@app.get("/api/my-stats")
+def api_my_stats(branch: str, period: str = "today", x_init_data: str = Header(default="")):
+    """Личная статистика мойщика: сегодня / неделя / месяц.
+    Мойщик авторизуется своим Telegram-аккаунтом — привязка идёт через
+    белый список пользователей (load_users: user_id → имя), сверенный со
+    списком сотрудников филиала (get_branch_workers)."""
+    name = _employee_name_from_init(x_init_data)
+    if not name or name not in get_branch_workers(branch):
+        raise HTTPException(403, "Вы не привязаны как сотрудник этого филиала")
+
+    if period == "today":
+        session = get_session(branch)
+        stats = _my_day_stats(session, name)
+        stats["date"] = session.get("date")
+        return {"name": name, "period": "today", "stats": stats}
+
+    if period not in ("week", "month"):
+        raise HTTPException(400, "period должен быть today|week|month")
+
+    today = datetime.now()
+    if period == "week":
+        start = (today - timedelta(days=today.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    archive = load_archive()
+    branch_archive = archive.get(branch, {})
+
+    days_out = []
+    total_cars = total_salary = total_revenue = 0
+    for date_str, day in branch_archive.items():
+        try:
+            dt = datetime.strptime(date_str, "%d.%m.%Y")
+        except ValueError:
+            continue
+        if not (start <= dt <= today):
+            continue
+        st = _my_day_stats(day, name)
+        if st["cars"] == 0:
+            continue
+        days_out.append({"date": date_str, **st})
+        total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
+
+    session = get_session(branch)
+    if session.get("cars"):
+        st = _my_day_stats(session, name)
+        if st["cars"] > 0:
+            days_out.append({"date": session.get("date"), **st})
+            total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
+
+    days_out.sort(key=lambda d: datetime.strptime(d["date"], "%d.%m.%Y"))
+    return {
+        "name": name, "period": period,
+        "from": start.strftime("%d.%m.%Y"), "to": today.strftime("%d.%m.%Y"),
+        "total_cars": total_cars, "total_salary": total_salary, "total_revenue": total_revenue,
+        "days": days_out,
+    }
 
 
 @app.get("/api/branches/summary")
