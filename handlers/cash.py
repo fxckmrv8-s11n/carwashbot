@@ -142,7 +142,7 @@ async def income_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     context.user_data["step"] = "income_text"
     await query.message.reply_text(
-        "💰 Напиши доход одной строкой:\nПример: `доход 500 за мойку ковров`",
+        "💰 Напиши доход одной строкой:\nПример: `500 нал за мойку ковров`",
         parse_mode="Markdown")
 
 
@@ -164,21 +164,45 @@ async def _save_income(update: Update, context: ContextTypes.DEFAULT_TYPE, text:
     if not branch:
         await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
     session = get_session(branch)
-    parts   = text.split()
+    parts   = [p for p in text.split() if p.lower() != "доход"]
     if len(parts) < 2:
         await update.message.reply_text(
-            "💰 Формат: `доход 500 за что-то`", parse_mode="Markdown"); return
-    try:
-        amount = int(parts[-1].replace("р","").replace("₽",""))
-        name   = " ".join(p for p in parts[:-1] if p.lower() != "доход")
-        if not name:
-            name = " ".join(parts[:-1])
-    except ValueError:
+            "💰 Формат: `доход 500 нал за что-то`", parse_mode="Markdown"); return
+
+    PAYMENT_MAP = {
+        "нал": "нал", "наличка": "нал", "наличными": "нал",
+        "visa": "visa", "виза": "visa",
+        "безнал": "безнал", "петрон": "безнал", "petron": "безнал",
+    }
+
+    amount_idx = None
+    for i, p in enumerate(parts):
+        try:
+            int(p.replace("р", "").replace("₽", ""))
+            amount_idx = i
+            break
+        except ValueError:
+            continue
+    if amount_idx is None:
         await update.message.reply_text("❌ Укажи сумму числом."); return
-    session["incomes"].append({"name": name, "amount": amount})
+    amount = int(parts[amount_idx].replace("р", "").replace("₽", ""))
+
+    payment = "нал"
+    payment_idx = None
+    for i, p in enumerate(parts):
+        if p.lower() in PAYMENT_MAP:
+            payment = PAYMENT_MAP[p.lower()]
+            payment_idx = i
+            break
+
+    name_parts = [p for i, p in enumerate(parts) if i not in (amount_idx, payment_idx)]
+    name = " ".join(name_parts) if name_parts else "доход"
+
+    session["incomes"].append({"name": name, "amount": amount, "payment": payment})
     save_sessions()
     total = sum(i["amount"] for i in session["incomes"])
-    await update.message.reply_text(f"💰 Доход: {name} — {amount}₽\nВсего доходов: {total}₽")
+    await update.message.reply_text(
+        f"💰 Доход: {name} — {amount}₽ ({payment})\nВсего доходов: {total}₽")
 
 
 # ── /summary, /list ────────────────────────────────────────────────────────
@@ -219,7 +243,12 @@ async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"\n\n💸 Расходы: {s['total_expenses']}₽ ({s['expenses_str']})"
     )
     if s.get("total_incomes"):
-        text += f"\n💰 Доходы: {s['total_incomes']}₽ ({s['incomes_str']})"
+        inc_detail_parts = []
+        if s.get("income_cash"):   inc_detail_parts.append(f"нал +{s['income_cash']}₽")
+        if s.get("income_visa"):   inc_detail_parts.append(f"visa +{s['income_visa']}₽")
+        if s.get("income_beznal"): inc_detail_parts.append(f"безнал +{s['income_beznal']}₽")
+        inc_detail = " | ".join(inc_detail_parts)
+        text += f"\n💰 Доходы: {s['total_incomes']}₽ ({inc_detail})\n   {s['incomes_str']}"
     text += f"\n🏦 Остаток: *{s['remainder']}₽*"
     keyboard = [[
         InlineKeyboardButton("📄 PDF", callback_data="cmd_pdf"),
