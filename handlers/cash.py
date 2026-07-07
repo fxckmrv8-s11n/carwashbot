@@ -136,6 +136,51 @@ async def _save_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, text
     await update.message.reply_text(f"💸 Расход: {name} — {amount}₽\nВсего расходов: {total}₽")
 
 
+# ── /income — доход, зеркально расходу, но плюсует деньги в кассу ─────────
+
+async def income_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    context.user_data["step"] = "income_text"
+    await query.message.reply_text(
+        "💰 Напиши доход одной строкой:\nПример: `доход 500 за мойку ковров`",
+        parse_mode="Markdown")
+
+
+async def handle_income_step_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if context.user_data.get("step") != "income_text":
+        return False
+    context.user_data.pop("step", None)
+    await _save_income(update, context, update.message.text.strip())
+    return True
+
+
+async def income_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    await _save_income(update, context, text)
+
+
+async def _save_income(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    branch = get_current_branch(context)
+    if not branch:
+        await update.message.reply_text("⚠️ Сначала выбери филиал: /newday"); return
+    session = get_session(branch)
+    parts   = text.split()
+    if len(parts) < 2:
+        await update.message.reply_text(
+            "💰 Формат: `доход 500 за что-то`", parse_mode="Markdown"); return
+    try:
+        amount = int(parts[-1].replace("р","").replace("₽",""))
+        name   = " ".join(p for p in parts[:-1] if p.lower() != "доход")
+        if not name:
+            name = " ".join(parts[:-1])
+    except ValueError:
+        await update.message.reply_text("❌ Укажи сумму числом."); return
+    session["incomes"].append({"name": name, "amount": amount})
+    save_sessions()
+    total = sum(i["amount"] for i in session["incomes"])
+    await update.message.reply_text(f"💰 Доход: {name} — {amount}₽\nВсего доходов: {total}₽")
+
+
 # ── /summary, /list ────────────────────────────────────────────────────────
 
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,8 +217,10 @@ async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += (
         f"\n👷 *Зарплаты:*\n" + "\n".join(salary_lines) +
         f"\n\n💸 Расходы: {s['total_expenses']}₽ ({s['expenses_str']})"
-        f"\n🏦 Остаток: *{s['remainder']}₽*"
     )
+    if s.get("total_incomes"):
+        text += f"\n💰 Доходы: {s['total_incomes']}₽ ({s['incomes_str']})"
+    text += f"\n🏦 Остаток: *{s['remainder']}₽*"
     keyboard = [[
         InlineKeyboardButton("📄 PDF", callback_data="cmd_pdf"),
         InlineKeyboardButton("📋 Список", callback_data="cmd_list"),
