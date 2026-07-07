@@ -139,6 +139,12 @@ class ExpenseIn(BaseModel):
     amount: int
 
 
+class IncomeIn(BaseModel):
+    branch: str
+    name: str
+    amount: int
+
+
 class WorkerIn(BaseModel):
     branch: str
     name: str
@@ -502,6 +508,29 @@ def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default=
     save_sessions()
     log_action(branch, "expense_delete", current_user_id(x_init_data), current_user_name(x_init_data),
                f"{removed['name']} · -{removed['amount']}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
+@app.post("/api/income")
+def api_add_income(body: IncomeIn, x_init_data: str = Header(default="")):
+    session = get_session(body.branch)
+    session.setdefault("incomes", []).append({"name": body.name, "amount": body.amount})
+    save_sessions()
+    log_action(body.branch, "income_add", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{body.name} · +{body.amount}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
+@app.delete("/api/income/{branch}/{idx}")
+def api_delete_income(branch: str, idx: int, x_init_data: str = Header(default="")):
+    session = get_session(branch)
+    incomes = session.get("incomes", [])
+    if not (0 <= idx < len(incomes)):
+        raise HTTPException(404, "Доход не найден")
+    removed = incomes.pop(idx)
+    save_sessions()
+    log_action(branch, "income_delete", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{removed['name']} · +{removed['amount']}₽")
     return {"ok": True, "summary": calculate_summary(session)}
 
 
