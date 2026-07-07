@@ -181,9 +181,11 @@ def main():
         if not WEBAPP_URL:
             await update.message.reply_text("⚠️ WEBAPP_URL не задан в .env — сначала задеплой webapp/ и укажи адрес.")
             return
+        import time
         branch = get_current_branch(context) or ""
-        url = WEBAPP_URL + (f"?startapp={branch}" if branch else "")
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=WEBAPP_URL))]])
+        cache_bust = int(time.time())
+        url = f"{WEBAPP_URL}?v={cache_bust}" + (f"&startapp={branch}" if branch else "")
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=url))]])
         await update.message.reply_text("Жми, чтобы открыть панель:", reply_markup=kb)
 
     request = HTTPXRequest(
