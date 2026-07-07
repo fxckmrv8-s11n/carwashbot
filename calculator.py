@@ -108,10 +108,34 @@ def calculate_summary(session: dict) -> dict:
     admin_base    = total_washers + total_products
     admin_salary  = round_salary(admin_base * session.get("admin_percent", SALARY_ADMIN))
 
+    def income_amounts(inc):
+        """Возвращает {метод: сумма} для дохода — с учётом раздельной оплаты."""
+        split = inc.get("payment_split")
+        if split:
+            return {k.lower(): v for k, v in split.items() if v}
+        return {inc.get("payment", "нал").lower(): inc["amount"]}
+
+    def sum_income_method(incomes_list, keys):
+        total = 0
+        for inc in incomes_list:
+            for method, amount in income_amounts(inc).items():
+                if method in keys:
+                    total += amount
+        return total
+
+    income_cash   = sum_income_method(incomes, ["нал", "наличка"])
+    income_visa   = sum_income_method(incomes, ["visa", "виза"])
+    income_beznal = sum_income_method(incomes, ["безнал", "петрон", "petron"])
+
+    cash   += income_cash
+    visa   += income_visa
+    beznal += income_beznal
+    total  = cash + visa + beznal
+
     total_expenses = sum(e["amount"] for e in expenses)
     expenses_str   = "; ".join(f"{e['name']} - {e['amount']}" for e in expenses) or "нет"
 
-    total_incomes = sum(i["amount"] for i in incomes)
+    total_incomes = income_cash + income_visa + income_beznal
     incomes_str   = "; ".join(f"{i['name']} - {i['amount']}" for i in incomes) or "нет"
 
     return {
@@ -124,5 +148,6 @@ def calculate_summary(session: dict) -> dict:
         "admin_salary": admin_salary,
         "total_expenses": total_expenses, "expenses_str": expenses_str,
         "total_incomes": total_incomes, "incomes_str": incomes_str,
-        "remainder": cash - total_expenses + total_incomes,
+        "income_cash": income_cash, "income_visa": income_visa, "income_beznal": income_beznal,
+        "remainder": cash - total_expenses,
     }
