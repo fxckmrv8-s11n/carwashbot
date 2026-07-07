@@ -1053,6 +1053,24 @@ async function renderHome(){
         :`<p class="empty">Расходов пока нет</p>`}
     </div>
     <div class="btn-wrap"><button class="btn secondary btn-sm" onclick="uiAddExpense()"><i class="ti ti-plus"></i>Добавить расход</button></div>
+
+    <div class="section-label">
+      <span>Доходы</span>
+      <span style="color:var(--green);font-size:13px;font-weight:700">+${fmt(summary.total_incomes||0)}</span>
+    </div>
+    <div class="card">
+      ${(session.incomes||[]).length
+        ?session.incomes.map((inc,i)=>`
+          <div class="expense-row">
+            <span class="expense-name">${inc.name}</span>
+            <div class="expense-right">
+              <span class="expense-amount" style="color:var(--green)">+${fmt(inc.amount)}</span>
+              <span class="expense-del" onclick="delIncome(${i})">Удалить</span>
+            </div>
+          </div>`).join("")
+        :`<p class="empty">Доходов пока нет</p>`}
+    </div>
+    <div class="btn-wrap"><button class="btn secondary btn-sm" onclick="uiAddIncome()"><i class="ti ti-plus"></i>Добавить доход</button></div>
     <div class="btn-wrap" style="padding-top:0"><button class="btn danger-outline" onclick="startNewDay()">Закрыть смену / новый день</button></div>
   `;
   HOME_CARS=session.cars.slice().reverse();
@@ -1149,6 +1167,23 @@ window.delExpense=async(idx)=>{
     if(!ok) return;
     haptic("medium");
     await api(`/api/expense/${encodeURIComponent(BRANCH)}/${idx}`,{method:"DELETE"});
+    renderHome();
+  });
+};
+window.uiAddIncome=()=>{
+  const name=window.prompt("Название дохода:");
+  if(!name) return;
+  const amountStr=window.prompt("Сумма (₽):","500");
+  const amount=parseInt((amountStr||"").replace(/[^\d]/g,""),10);
+  if(!amount) return tg.showAlert("Введи корректную сумму");
+  api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount})})
+    .then(()=>{haptic("medium");renderHome();}).catch(()=>{});
+};
+window.delIncome=async(idx)=>{
+  tg.showConfirm("Удалить доход?",async(ok)=>{
+    if(!ok) return;
+    haptic("medium");
+    await api(`/api/income/${encodeURIComponent(BRANCH)}/${idx}`,{method:"DELETE"});
     renderHome();
   });
 };
@@ -1445,6 +1480,13 @@ async function renderReports(){
         ?(today.session.expenses||[]).map(e=>`<div class="expense-row"><span class="expense-name">${e.name}</span><span class="expense-amount">-${fmt(e.amount)}</span></div>`).join("")
         :`<p class="empty" style="padding:14px">Расходов нет</p>`}
       ${today.session.expenses?.length?`<div class="expense-row"><span style="font-weight:600;color:var(--text-secondary)">Шеф</span><span class="expense-amount">-${fmt(today.summary.total_expenses||0)}</span></div>`:""}
+    </div>
+
+    <div class="section-label">Доходы<span style="color:var(--green);font-size:13px;font-weight:700">+${fmt(today.summary.total_incomes||0)}</span></div>
+    <div class="card">
+      ${(today.session.incomes||[]).length
+        ?(today.session.incomes||[]).map(inc=>`<div class="expense-row"><span class="expense-name">${inc.name}</span><span class="expense-amount" style="color:var(--green)">+${fmt(inc.amount)}</span></div>`).join("")
+        :`<p class="empty" style="padding:14px">Доходов нет</p>`}
     </div>
 
     <div class="section-label">Сравнение с вчера</div>
