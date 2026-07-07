@@ -355,6 +355,7 @@ async def _handle_edit_price_text(update: Update, context: ContextTypes.DEFAULT_
         return True
     old = car["price"]
     car["price"] = price
+    car.pop("price_breakdown", None)
     save_sessions()
     await update.message.reply_text(f"✅ #{num} {car['car']}: {old}₽ → {price}₽")
     return True
@@ -395,7 +396,7 @@ async def edit_car_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     car = next((c for c in session["cars"] if c["num"] == num), None)
     if not car:
         await update.message.reply_text(f"❌ Машина #{num} не найдена."); return
-    old = car["price"]; car["price"] = price; save_sessions()
+    old = car["price"]; car["price"] = price; car.pop("price_breakdown", None); save_sessions()
     await update.message.reply_text(f"✅ #{num} {car['car']}: {old}₽ → {price}₽")
 
 
