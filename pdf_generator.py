@@ -239,6 +239,16 @@ def draw_header_table(c, session, summary, y_top):
                 f"{summary['total_expenses']} руб.", bold=False, align="center", size=FS)
     y_top -= rh
 
+    # ── Строка 6.5: Доходы (если есть)
+    if summary.get("total_incomes"):
+        rect(c, x, y_top, w, rh)
+        vline(c, x + w - right_col, y_top, rh)
+        text_in(c, x, y_top, 18*mm, rh, "Доходы:", bold=True, size=FS)
+        text_in(c, x + 18*mm, y_top, w - right_col - 18*mm, rh, summary["incomes_str"], bold=False, size=FS)
+        text_in(c, x + w - right_col, y_top, right_col, rh,
+                f"{summary['total_incomes']} руб.", bold=False, align="center", size=FS)
+        y_top -= rh
+
     # ── Строка 7: Остаток
     rect(c, x, y_top, w, rh)
     vline(c, x + w - right_col, y_top, rh)

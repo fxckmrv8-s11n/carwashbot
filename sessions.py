@@ -166,7 +166,7 @@ def get_session(branch: str) -> dict:
         sessions[branch] = _empty_session(branch)
         save_sessions()
     s = sessions[branch]
-    for key in ("loyalty", "expenses", "cars", "products"):
+    for key in ("loyalty", "expenses", "incomes", "cars", "products"):
         if key not in s:
             s[key] = []
     return s
@@ -184,6 +184,7 @@ def _empty_session(branch: str) -> dict:
         "cars":          [],
         "products":      [],
         "expenses":      [],
+        "incomes":       [],
         "loyalty":       [],
         "admin_percent": SALARY_ADMIN,
     }
@@ -205,6 +206,7 @@ def save_to_archive(branch: str, session: dict):
             "cars":          session.get("cars", []),
             "products":      session.get("products", []),
             "expenses":      session.get("expenses", []),
+            "incomes":       session.get("incomes", []),
             "loyalty":       session.get("loyalty", []),
             "admin_percent": session.get("admin_percent", SALARY_ADMIN),
         }

@@ -24,6 +24,7 @@ def calculate_summary(session: dict) -> dict:
     cars     = session.get("cars", [])
     products = session.get("products", [])
     expenses = session.get("expenses", [])
+    incomes  = session.get("incomes", [])
     loyalty  = session.get("loyalty", [])
 
     # Скидки по машинам
@@ -110,6 +111,9 @@ def calculate_summary(session: dict) -> dict:
     total_expenses = sum(e["amount"] for e in expenses)
     expenses_str   = "; ".join(f"{e['name']} - {e['amount']}" for e in expenses) or "нет"
 
+    total_incomes = sum(i["amount"] for i in incomes)
+    incomes_str   = "; ".join(f"{i['name']} - {i['amount']}" for i in incomes) or "нет"
+
     return {
         "total": total, "grand_total": total + total_loyalty,
         "cash": cash, "visa": visa, "beznal": beznal,
@@ -119,5 +123,6 @@ def calculate_summary(session: dict) -> dict:
         "washer_totals": washer_totals, "washer_salaries": washer_salaries,
         "admin_salary": admin_salary,
         "total_expenses": total_expenses, "expenses_str": expenses_str,
-        "remainder": cash - total_expenses,
+        "total_incomes": total_incomes, "incomes_str": incomes_str,
+        "remainder": cash - total_expenses + total_incomes,
     }

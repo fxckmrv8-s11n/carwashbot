@@ -16,8 +16,8 @@ from handlers.cars import (
     edit_car_command, delete_car_command, handle_text_step, parse_car_from_text,
 )
 from handlers.cash import (
-    loyal_command, expense_command, show_summary, show_list, handle_loyal_text,
-    handle_expense_step_text,
+    loyal_command, expense_command, income_command, show_summary, show_list, handle_loyal_text,
+    handle_expense_step_text, handle_income_step_text,
 )
 from handlers.reports import (
     stats_command, week_command, month_command, report_command,
@@ -113,6 +113,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await handle_text_step(update, context): return
     if await handle_loyal_text(update, context): return
     if await handle_expense_step_text(update, context): return
+    if await handle_income_step_text(update, context): return
     if await handle_settings_text_step(update, context): return
 
     branch = get_current_branch(context)
@@ -128,6 +129,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text.lower().startswith("расход"):
         await expense_command(update, context); return
+
+    if text.lower().startswith("доход"):
+        await income_command(update, context); return
 
     lines   = [l.strip() for l in text.splitlines() if l.strip()]
     workers = get_branch_workers(branch)
