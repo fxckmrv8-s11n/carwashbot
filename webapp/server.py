@@ -647,6 +647,17 @@ def _my_day_stats(day_data: dict, name: str) -> dict:
         "cars": len(my_cars),
         "salary": s["washer_salaries"].get(name, 0),
         "revenue": sum(c["price"] for c in my_cars),
+        "car_list": [
+            {
+                "num": c.get("num"),
+                "car": c.get("car") or "",
+                "service": c.get("service") or "",
+                "price": c.get("price", 0),
+                "payment": c.get("payment", ""),
+                "time": c.get("time", ""),
+            }
+            for c in my_cars
+        ],
     }
 
 
