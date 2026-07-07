@@ -1062,7 +1062,7 @@ async function renderHome(){
       ${(session.incomes||[]).length
         ?session.incomes.map((inc,i)=>`
           <div class="expense-row">
-            <span class="expense-name">${inc.name}</span>
+            <span class="expense-name">${inc.name}<span style="color:var(--text-muted);font-weight:400"> · ${inc.payment_split?Object.entries(inc.payment_split).map(([k,v])=>`${k} ${v}₽`).join(" + "):(inc.payment||"нал")}</span></span>
             <div class="expense-right">
               <span class="expense-amount" style="color:var(--green)">+${fmt(inc.amount)}</span>
               <span class="expense-del" onclick="delIncome(${i})">Удалить</span>
@@ -1176,7 +1176,37 @@ window.uiAddIncome=()=>{
   const amountStr=window.prompt("Сумма (₽):","500");
   const amount=parseInt((amountStr||"").replace(/[^\d]/g,""),10);
   if(!amount) return tg.showAlert("Введи корректную сумму");
-  api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount})})
+  tg.showPopup({
+    title:"Способ оплаты",
+    message:`${name} — ${fmt(amount)}₽`,
+    buttons:[
+      {id:"нал",type:"default",text:"💵 Нал"},
+      {id:"visa",type:"default",text:"💳 Visa"},
+      {id:"безнал",type:"default",text:"🏦 Безнал"},
+      {id:"split",type:"default",text:"➗ Разделить"},
+      {id:"cancel",type:"cancel"},
+    ],
+  },(id)=>{
+    if(!id||id==="cancel") return;
+    if(id==="split"){ uiAddIncomeSplit(name,amount); return; }
+    api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount,payment:id})})
+      .then(()=>{haptic("medium");renderHome();}).catch(()=>{});
+  });
+};
+window.uiAddIncomeSplit=(name,amount)=>{
+  const cashStr=window.prompt(`Сколько наличными из ${fmt(amount)}₽?`,"0");
+  const cash=parseInt((cashStr||"").replace(/[^\d]/g,""),10)||0;
+  const visaStr=window.prompt(`Сколько по Visa?`,"0");
+  const visa=parseInt((visaStr||"").replace(/[^\d]/g,""),10)||0;
+  const beznalStr=window.prompt(`Сколько безналом?`,"0");
+  const beznal=parseInt((beznalStr||"").replace(/[^\d]/g,""),10)||0;
+  const split={};
+  if(cash) split["нал"]=cash;
+  if(visa) split["visa"]=visa;
+  if(beznal) split["безнал"]=beznal;
+  if(!Object.keys(split).length) return tg.showAlert("Укажи хотя бы одну сумму");
+  const total=cash+visa+beznal;
+  api("/api/income",{method:"POST",body:JSON.stringify({branch:BRANCH,name,amount:total,payment_split:split})})
     .then(()=>{haptic("medium");renderHome();}).catch(()=>{});
 };
 window.delIncome=async(idx)=>{
