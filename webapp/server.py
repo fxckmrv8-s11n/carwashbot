@@ -593,6 +593,35 @@ def api_report_month(branch: str, month: str, year: int = 0):
     return {"month": month, "year": year, "grand_total": grand, "by_worker": week_sal}
 
 
+@app.get("/api/branches/summary")
+def api_branches_summary():
+    """Публичная сводка по всем филиалам (сегодня + тренд за 5 дней) —
+    используется на экране выбора филиала, доступна любому пользователю бота."""
+    archive = load_archive()
+    today = datetime.now()
+    out = []
+    for branch in BRANCHES:
+        session = get_session(branch)
+        s = calculate_summary(session)
+        branch_archive = archive.get(branch, {})
+        trend = []
+        for i in range(4, -1, -1):
+            dt = today - timedelta(days=i)
+            date_str = dt.strftime("%d.%m.%Y")
+            if i == 0:
+                trend.append(s["grand_total"])
+            else:
+                day = branch_archive.get(date_str)
+                trend.append(calculate_summary(day)["grand_total"] if day else 0)
+        out.append({
+            "branch": branch,
+            "total": s["grand_total"],
+            "cars": len(session.get("cars", [])),
+            "trend": trend,
+        })
+    return {"branches": out}
+
+
 @app.get("/api/reports/allreport")
 def api_report_allreport(x_init_data: str = Header(default="")):
     require_owner(x_init_data)
