@@ -41,6 +41,9 @@ from xlsx_generator import generate_xlsx
 from history_log import log_action, get_history
 from presets import list_presets, add_preset, delete_preset
 from notify import notify_user
+from webapp.auth_web import (
+    LoginIn, login as site_login, logout as site_logout, get_session as get_site_session,
+)
 
 MONTHS_RU = {
     "январь": 1, "февраль": 2, "март": 3, "апрель": 4,
@@ -68,24 +71,24 @@ def verify_init_data(init_data: str) -> dict:
     return json.loads(parsed.get("user", "{}"))
 
 
-def auth(x_init_data: str = Header(default="")) -> dict:
+def auth(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")) -> dict:
     # В деве можно временно закомментировать verify и просто распарсить user.
     return verify_init_data(x_init_data)
 
 
-def auth_optional(x_init_data: str = Header(default="")) -> dict:
+def auth_optional(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")) -> dict:
     try:
         return verify_init_data(x_init_data)
     except HTTPException:
         return {}
 
 
-def current_user_id(x_init_data: str = Header(default="")) -> int:
+def current_user_id(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")) -> int:
     user = auth_optional(x_init_data)
     return int(user.get("id", 0))
 
 
-def current_user_name(x_init_data: str = Header(default="")) -> str:
+def current_user_name(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")) -> str:
     user = auth_optional(x_init_data)
     return user.get("first_name", "") or user.get("username", "") or "—"
 
@@ -111,17 +114,28 @@ def is_whitelisted(uid: int) -> bool:
     return str(uid) in users
 
 
-def require_access(x_init_data: str = Header(default="")) -> int:
+def require_access(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")) -> int:
     """Базовая проверка для ЛЮБОГО запроса, читающего/меняющего данные кассы:
-    пользователь должен быть в белом списке. Раньше многие ручки вообще не
-    проверяли, кто стучится — здесь мы это закрываем."""
+    пользователь должен быть в белом списке (Telegram) ИЛИ иметь валидный
+    сайтовый токен (вход по общему паролю на сайте). Раньше многие ручки
+    вообще не проверяли, кто стучится — здесь мы это закрываем."""
+    site = get_site_session(x_site_token)
+    if site:
+        return 0  # у сайтовых пользователей нет telegram id — 0 означает "веб-пользователь"
     uid = current_user_id(x_init_data)
     if not is_whitelisted(uid):
         raise HTTPException(403, "Доступ отозван или не выдан. Обратитесь к владельцу.")
     return uid
 
 
-def require_branch_admin(branch: str, x_init_data: str = Header(default="")):
+def require_branch_admin(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    site = get_site_session(x_site_token)
+    if site:
+        if site["role"] not in ("админ", "владелец"):
+            raise HTTPException(403, "Нет прав администратора филиала")
+        if site["role"] == "админ" and site.get("branch") != branch:
+            raise HTTPException(403, "Нет прав администратора этого филиала")
+        return 0
     uid = current_user_id(x_init_data)
     if not is_whitelisted(uid):
         raise HTTPException(403, "Доступ отозван или не выдан. Обратитесь к владельцу.")
@@ -130,11 +144,36 @@ def require_branch_admin(branch: str, x_init_data: str = Header(default="")):
     return uid
 
 
-def require_owner(x_init_data: str = Header(default="")):
+def require_owner(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    site = get_site_session(x_site_token)
+    if site:
+        if site["role"] != "владелец":
+            raise HTTPException(403, "Только для владельца")
+        return 0
     uid = current_user_id(x_init_data)
     if uid != OWNER_ID:
         raise HTTPException(403, "Только для владельца")
     return uid
+
+
+# ── Веб-вход по общему паролю (имя + должность) ─────────────────────────────
+@app.post("/api/site/login")
+def api_site_login(body: LoginIn):
+    return site_login(body)
+
+
+@app.post("/api/site/logout")
+def api_site_logout(x_site_token: str = Header(default="")):
+    site_logout(x_site_token)
+    return {"ok": True}
+
+
+@app.get("/api/site/me")
+def api_site_me(x_site_token: str = Header(default="")):
+    site = get_site_session(x_site_token)
+    if not site:
+        raise HTTPException(401, "Не авторизован")
+    return site
 
 
 # ── Модели запросов ─────────────────────────────────────────────────────────
@@ -235,8 +274,8 @@ def api_config():
 
 
 @app.get("/api/workers")
-def api_workers(branch: str, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_workers(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     return {
         "workers": get_branch_workers(branch),
         "admin_id": get_branch_admin(branch),
@@ -245,8 +284,8 @@ def api_workers(branch: str, x_init_data: str = Header(default="")):
 
 
 @app.post("/api/schedule")
-def api_set_schedule(body: ScheduleIn, x_init_data: str = Header(default="")):
-    require_branch_admin(body.branch, x_init_data)
+def api_set_schedule(body: ScheduleIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(body.branch, x_init_data, x_site_token)
     if body.name not in get_branch_workers(body.branch):
         raise HTTPException(404, "Сотрудник не найден")
     if body.work_days <= 0 or body.rest_days < 0:
@@ -256,17 +295,17 @@ def api_set_schedule(body: ScheduleIn, x_init_data: str = Header(default="")):
 
 
 @app.delete("/api/schedule/{branch}/{name}")
-def api_clear_schedule(branch: str, name: str, x_init_data: str = Header(default="")):
-    require_branch_admin(branch, x_init_data)
+def api_clear_schedule(branch: str, name: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
     clear_worker_schedule(branch, name)
     return {"ok": True, "schedule": get_schedule_status(branch)}
 
 
 @app.get("/api/schedule/week")
-def api_schedule_week(branch: str, monday: str = "", x_init_data: str = Header(default="")):
+def api_schedule_week(branch: str, monday: str = "", x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """График Пн–Пт для всех мойщиков филиала.
     monday — дата понедельника (YYYY-MM-DD); по умолчанию — понедельник текущей недели."""
-    require_access(x_init_data)
+    require_access(x_init_data, x_site_token)
     from datetime import date as _date, timedelta as _timedelta
     if monday:
         try:
@@ -295,7 +334,7 @@ def api_schedule_week(branch: str, monday: str = "", x_init_data: str = Header(d
 
 
 @app.get("/api/me")
-def api_me(branch: str = "", x_init_data: str = Header(default="")):
+def api_me(branch: str = "", x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     user = auth_optional(x_init_data)
     uid = int(user.get("id", 0))
     users = load_users()
@@ -312,8 +351,8 @@ def api_me(branch: str = "", x_init_data: str = Header(default="")):
 
 
 @app.post("/api/workers")
-def api_add_worker(body: WorkerIn, x_init_data: str = Header(default="")):
-    require_branch_admin(body.branch, x_init_data)
+def api_add_worker(body: WorkerIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(body.branch, x_init_data, x_site_token)
     added = add_branch_worker(body.branch, body.name.strip())
     if not added:
         raise HTTPException(400, "Такой сотрудник уже есть")
@@ -324,55 +363,60 @@ def api_add_worker(body: WorkerIn, x_init_data: str = Header(default="")):
 
 
 @app.delete("/api/workers/{branch}/{name}")
-def api_remove_worker(branch: str, name: str, x_init_data: str = Header(default="")):
-    require_branch_admin(branch, x_init_data)
+def api_remove_worker(branch: str, name: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
     remove_branch_worker(branch, name)
     return {"ok": True, "workers": get_branch_workers(branch)}
 
 
 @app.post("/api/branch-admin")
-def api_set_branch_admin(body: BranchAdminIn, x_init_data: str = Header(default="")):
-    uid = current_user_id(x_init_data)
-    if uid != OWNER_ID and not is_branch_admin(uid, body.branch):
-        raise HTTPException(403, "Нет прав")
+def api_set_branch_admin(body: BranchAdminIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    site = get_site_session(x_site_token)
+    if site:
+        if site["role"] != "владелец" and not (site["role"] == "админ" and site.get("branch") == body.branch):
+            raise HTTPException(403, "Нет прав")
+    else:
+        uid = current_user_id(x_init_data)
+        if uid != OWNER_ID and not is_branch_admin(uid, body.branch):
+            raise HTTPException(403, "Нет прав")
     set_branch_admin(body.branch, body.user_id)
     notify_user(body.user_id, f"Вас назначили администратором филиала «{body.branch}» 🛡️")
     return {"ok": True, "admin_id": get_branch_admin(body.branch)}
 
 
 @app.get("/api/users")
-def api_list_users(x_init_data: str = Header(default="")):
-    require_owner(x_init_data)
+def api_list_users(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_owner(x_init_data, x_site_token)
     users = load_users()
     return {"users": [{"user_id": int(uid), "name": name} for uid, name in users.items()]}
 
 
 @app.post("/api/users")
-def api_add_user(body: UserIn, x_init_data: str = Header(default="")):
-    require_owner(x_init_data)
+def api_add_user(body: UserIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_owner(x_init_data, x_site_token)
     add_user(body.user_id, body.name)
     return {"ok": True}
 
 
 @app.delete("/api/users/{user_id}")
-def api_remove_user(user_id: int, x_init_data: str = Header(default="")):
-    require_owner(x_init_data)
+def api_remove_user(user_id: int, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_owner(x_init_data, x_site_token)
     remove_user(user_id)
     return {"ok": True}
 
 
 # ── Смена ────────────────────────────────────────────────────────────────
 @app.get("/api/session")
-def api_session(branch: str, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_session(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(branch)
     summary = calculate_summary(session)
     return {"session": session, "summary": summary}
 
 
 @app.post("/api/car")
-def api_add_car(body: CarIn, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_add_car(body: CarIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(body.branch)
     body_type = body.body_type
 
@@ -441,10 +485,10 @@ def _rebuild_car_breakdown(body_type: str, service_keys: list, custom_services: 
 
 
 @app.put("/api/car/{branch}/{num}")
-def api_edit_car(branch: str, num: int, body: CarEditIn, x_init_data: str = Header(default="")):
+def api_edit_car(branch: str, num: int, body: CarEditIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Редактирование существующей машины (услуги/оплата/мойщик и т.д.),
     вместо удаления и создания заново."""
-    require_access(x_init_data)
+    require_access(x_init_data, x_site_token)
     session = get_session(branch)
     car = next((c for c in session["cars"] if c["num"] == num), None)
     if not car:
@@ -487,10 +531,10 @@ def api_edit_car(branch: str, num: int, body: CarEditIn, x_init_data: str = Head
 
 
 @app.patch("/api/car/{branch}/{num}/status")
-def api_set_car_status(branch: str, num: int, body: CarStatusIn, x_init_data: str = Header(default="")):
+def api_set_car_status(branch: str, num: int, body: CarStatusIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Переключение статуса 'в работе' / 'оплачено'. Это отметка для персонала —
     на кассу и расчёты никак не влияет (машина учитывается в кассе сразу при добавлении)."""
-    require_access(x_init_data)
+    require_access(x_init_data, x_site_token)
     if body.status not in ("in_progress", "done"):
         raise HTTPException(400, "Статус может быть 'in_progress' или 'done'")
     session = get_session(branch)
@@ -505,8 +549,8 @@ def api_set_car_status(branch: str, num: int, body: CarStatusIn, x_init_data: st
 
 
 @app.delete("/api/car/{branch}/{num}")
-def api_delete_car(branch: str, num: int, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_delete_car(branch: str, num: int, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(branch)
     car = next((c for c in session["cars"] if c["num"] == num), None)
     session["cars"] = [c for c in session["cars"] if c["num"] != num]
@@ -518,17 +562,31 @@ def api_delete_car(branch: str, num: int, x_init_data: str = Header(default=""))
 
 
 @app.post("/api/loyalty")
-def api_add_loyalty(body: LoyaltyIn, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_add_loyalty(body: LoyaltyIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(body.branch)
     session.setdefault("loyalty", []).append({"car_num": body.car_num, "discount": body.discount})
     save_sessions()
     return {"ok": True, "summary": calculate_summary(session)}
 
 
+@app.delete("/api/loyalty/{branch}/{idx}")
+def api_delete_loyalty(branch: str, idx: int, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
+    session = get_session(branch)
+    loyalty = session.get("loyalty", [])
+    if not (0 <= idx < len(loyalty)):
+        raise HTTPException(404, "Скидка не найдена")
+    removed = loyalty.pop(idx)
+    save_sessions()
+    log_action(branch, "loyalty_delete", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"машина №{removed.get('car_num')} · -{removed.get('discount',0)}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
 @app.post("/api/expense")
-def api_add_expense(body: ExpenseIn, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_add_expense(body: ExpenseIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(body.branch)
     session.setdefault("expenses", []).append({"name": body.name, "amount": body.amount})
     save_sessions()
@@ -538,8 +596,8 @@ def api_add_expense(body: ExpenseIn, x_init_data: str = Header(default="")):
 
 
 @app.delete("/api/expense/{branch}/{idx}")
-def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(branch)
     expenses = session.get("expenses", [])
     if not (0 <= idx < len(expenses)):
@@ -552,8 +610,8 @@ def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default=
 
 
 @app.post("/api/income")
-def api_add_income(body: IncomeIn, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_add_income(body: IncomeIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(body.branch)
     entry = {"name": body.name, "amount": body.amount}
     if body.payment_split:
@@ -568,8 +626,8 @@ def api_add_income(body: IncomeIn, x_init_data: str = Header(default="")):
 
 
 @app.delete("/api/income/{branch}/{idx}")
-def api_delete_income(branch: str, idx: int, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_delete_income(branch: str, idx: int, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(branch)
     incomes = session.get("incomes", [])
     if not (0 <= idx < len(incomes)):
@@ -583,16 +641,16 @@ def api_delete_income(branch: str, idx: int, x_init_data: str = Header(default="
 
 # ── Отчёты ───────────────────────────────────────────────────────────────
 @app.get("/api/archive")
-def api_archive(branch: str, limit: int = 14, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_archive(branch: str, limit: int = 14, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     archive = load_archive()
     days = archive.get(branch, [])
     return {"days": days[-limit:][::-1]}
 
 
 @app.post("/api/newday")
-def api_newday(branch: str, x_init_data: str = Header(default="")):
-    require_branch_admin(branch, x_init_data)
+def api_newday(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
     session = get_session(branch)
     if session.get("cars") or session.get("products"):
         save_to_archive(branch, session)
@@ -601,8 +659,8 @@ def api_newday(branch: str, x_init_data: str = Header(default="")):
 
 
 @app.get("/api/reports/today")
-def api_report_today(branch: str, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_report_today(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     session = get_session(branch)
     summary = calculate_summary(session)
     svc_count = {}
@@ -613,8 +671,8 @@ def api_report_today(branch: str, x_init_data: str = Header(default="")):
 
 
 @app.get("/api/reports/week")
-def api_report_week(branch: str, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_report_week(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     archive = load_archive()
     branch_archive = archive.get(branch, {})
     today = datetime.now()
@@ -647,8 +705,8 @@ def api_report_week(branch: str, x_init_data: str = Header(default="")):
 
 
 @app.get("/api/reports/month")
-def api_report_month(branch: str, month: str, year: int = 0, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_report_month(branch: str, month: str, year: int = 0, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     month_num = MONTHS_RU.get(month.lower())
     if not month_num:
         raise HTTPException(400, f"Не понял месяц '{month}'")
@@ -701,7 +759,7 @@ def _my_day_stats(day_data: dict, name: str) -> dict:
 
 
 @app.get("/api/my-stats")
-def api_my_stats(branch: str, period: str = "today", x_init_data: str = Header(default="")):
+def api_my_stats(branch: str, period: str = "today", x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Личная статистика мойщика: сегодня / неделя / месяц.
     Мойщик авторизуется своим Telegram-аккаунтом — привязка идёт через
     белый список пользователей (load_users: user_id → имя), сверенный со
@@ -760,11 +818,11 @@ def api_my_stats(branch: str, period: str = "today", x_init_data: str = Header(d
 
 
 @app.get("/api/branches/summary")
-def api_branches_summary(x_init_data: str = Header(default="")):
+def api_branches_summary(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Сводка по всем филиалам (сегодня + тренд за 5 дней) — используется на
     экране выбора филиала. Доступна любому пользователю из белого списка бота
     (не любому человеку в интернете — initData подписан Telegram)."""
-    require_access(x_init_data)
+    require_access(x_init_data, x_site_token)
     archive = load_archive()
     today = datetime.now()
     out = []
@@ -791,8 +849,8 @@ def api_branches_summary(x_init_data: str = Header(default="")):
 
 
 @app.get("/api/reports/allreport")
-def api_report_allreport(x_init_data: str = Header(default="")):
-    require_owner(x_init_data)
+def api_report_allreport(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_owner(x_init_data, x_site_token)
     branches_out = []
     grand = 0
     for branch in BRANCHES:
@@ -809,8 +867,8 @@ def api_report_allreport(x_init_data: str = Header(default="")):
 
 
 @app.get("/api/reports/pdf")
-def api_report_pdf(branch: str, date: str = "", x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_report_pdf(branch: str, date: str = "", x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     archive = load_archive()
     if date:
         day_data = archive.get(branch, {}).get(date)
@@ -831,8 +889,8 @@ def api_report_pdf(branch: str, date: str = "", x_init_data: str = Header(defaul
 
 
 @app.get("/api/reports/xlsx")
-def api_report_xlsx(branch: str, date: str = "", x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_report_xlsx(branch: str, date: str = "", x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     archive = load_archive()
     if date:
         day_data = archive.get(branch, {}).get(date)
@@ -857,21 +915,21 @@ def api_report_xlsx(branch: str, date: str = "", x_init_data: str = Header(defau
 
 # ── История изменений кассы ──────────────────────────────────────────────
 @app.get("/api/history")
-def api_history(branch: str, limit: int = 100, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_history(branch: str, limit: int = 100, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     return {"entries": get_history(branch, limit)}
 
 
 # ── Пресеты услуг ────────────────────────────────────────────────────────
 @app.get("/api/presets")
-def api_get_presets(branch: str, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_get_presets(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     return {"presets": list_presets(branch)}
 
 
 @app.post("/api/presets")
-def api_add_preset(body: PresetIn, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_add_preset(body: PresetIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     if not body.service_keys and not body.custom_services:
         raise HTTPException(400, "Нужна хотя бы одна услуга в пресете")
     presets = add_preset(body.branch, body.name.strip(), body.service_keys, body.custom_services)
@@ -879,8 +937,8 @@ def api_add_preset(body: PresetIn, x_init_data: str = Header(default="")):
 
 
 @app.delete("/api/presets/{branch}/{name}")
-def api_delete_preset(branch: str, name: str, x_init_data: str = Header(default="")):
-    require_access(x_init_data)
+def api_delete_preset(branch: str, name: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
     presets = delete_preset(branch, name)
     return {"ok": True, "presets": presets}
 
