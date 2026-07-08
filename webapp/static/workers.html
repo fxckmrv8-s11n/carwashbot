@@ -203,6 +203,23 @@ table.week td:first-child{text-align:left;padding-left:18px;font-weight:600}
   </div>
 </div>
 
+<!-- Модалка истории зарплаты -->
+<div class="modal-overlay" id="salModal">
+  <div class="modal" style="width:460px">
+    <h3>Зарплата — <span id="salWorkerName"></span></h3>
+    <div style="display:flex;gap:6px;margin-bottom:14px" id="salTabs">
+      <button class="btn secondary sal-tab active" data-period="today" style="flex:1;justify-content:center">Сегодня</button>
+      <button class="btn secondary sal-tab" data-period="week" style="flex:1;justify-content:center">Неделя</button>
+      <button class="btn secondary sal-tab" data-period="month" style="flex:1;justify-content:center">Месяц</button>
+    </div>
+    <div id="salSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px"></div>
+    <div style="max-height:260px;overflow-y:auto;border:0.5px solid var(--border);border-radius:10px" id="salDays"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="salCloseBtn" style="flex:1;justify-content:center">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <script src="/static/site-common.js"></script>
 <script>
 if (CW.requireAuth()) {
@@ -295,6 +312,7 @@ if (CW.requireAuth()) {
           </div>
           ${canManage ? `
           <div class="worker-actions">
+            <div class="icon-btn" title="Зарплата за период" onclick="CW_openSalary('${name.replace(/'/g, "\\'")}')"><i class="ti ti-report-money"></i></div>
             <div class="icon-btn" title="Настроить график" onclick="CW_openSched('${name.replace(/'/g, "\\'")}')"><i class="ti ti-calendar-time"></i></div>
             <div class="icon-btn del" title="Удалить сотрудника" onclick="CW_delWorker('${name.replace(/'/g, "\\'")}')"><i class="ti ti-trash"></i></div>
           </div>` : ""}
@@ -366,6 +384,75 @@ if (CW.requireAuth()) {
       await loadWeek();
     } catch (e) { showErr(e.message); }
   });
+
+  // ── Зарплата за период ───────────────────────────────────────────────
+  const salModal = document.getElementById("salModal");
+  let salWorker = null;
+  let salPeriod = "today";
+
+  window.CW_openSalary = (name) => {
+    salWorker = name;
+    salPeriod = "today";
+    document.getElementById("salWorkerName").textContent = name;
+    document.querySelectorAll(".sal-tab").forEach(t => t.classList.toggle("active", t.dataset.period === "today"));
+    salModal.classList.add("show");
+    loadSalary();
+  };
+
+  document.querySelectorAll(".sal-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      salPeriod = tab.dataset.period;
+      document.querySelectorAll(".sal-tab").forEach(t => t.classList.toggle("active", t === tab));
+      loadSalary();
+    });
+  });
+
+  salModal.addEventListener("click", (e) => { if (e.target === salModal) salModal.classList.remove("show"); });
+  document.getElementById("salCloseBtn").addEventListener("click", () => salModal.classList.remove("show"));
+
+  async function loadSalary() {
+    const summaryEl = document.getElementById("salSummary");
+    const daysEl = document.getElementById("salDays");
+    summaryEl.innerHTML = `<div class="empty-note" style="padding:10px 0">Загрузка…</div>`;
+    daysEl.innerHTML = "";
+    try {
+      const data = await CW.authFetch(`/api/worker-stats?branch=${encodeURIComponent(branch)}&name=${encodeURIComponent(salWorker)}&period=${salPeriod}`);
+
+      if (salPeriod === "today") {
+        const st = data.stats;
+        summaryEl.innerHTML = `
+          <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Машин</div><div style="font-size:18px;font-weight:700">${st.cars}</div></div>
+          <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Выручка</div><div style="font-size:18px;font-weight:700">${CW.money(st.revenue)}</div></div>
+          <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Зарплата</div><div style="font-size:18px;font-weight:700;color:var(--green)">${CW.money(st.salary)}</div></div>
+        `;
+        daysEl.innerHTML = st.car_list.length ? st.car_list.map(c => `
+          <div class="worker-row" style="padding:10px 14px">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600">${c.car || "Машина"} · ${c.service || ""}</div>
+              <div class="worker-meta">${c.payment || ""}${c.time ? " · " + c.time : ""}</div>
+            </div>
+            <div style="font-size:13px;font-weight:700">${CW.money(c.price)}</div>
+          </div>`).join("") : `<div class="empty-note">Сегодня машин пока нет</div>`;
+      } else {
+        summaryEl.innerHTML = `
+          <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Машин</div><div style="font-size:18px;font-weight:700">${data.total_cars}</div></div>
+          <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Выручка</div><div style="font-size:18px;font-weight:700">${CW.money(data.total_revenue)}</div></div>
+          <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Зарплата</div><div style="font-size:18px;font-weight:700;color:var(--green)">${CW.money(data.total_salary)}</div></div>
+        `;
+        daysEl.innerHTML = data.days.length ? data.days.map(d => `
+          <div class="worker-row" style="padding:10px 14px">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600">${d.date}</div>
+              <div class="worker-meta">${d.cars} машин · выручка ${CW.money(d.revenue)}</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:var(--green)">${CW.money(d.salary)}</div>
+          </div>`).join("") : `<div class="empty-note">За этот период данных нет</div>`;
+      }
+    } catch (e) {
+      summaryEl.innerHTML = "";
+      daysEl.innerHTML = `<div class="empty-note">${e.message}</div>`;
+    }
+  }
 
   // ── Неделя ─────────────────────────────────────────────────────────
   async function loadWeek() {
