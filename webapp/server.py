@@ -817,6 +817,65 @@ def api_my_stats(branch: str, period: str = "today", x_init_data: str = Header(d
     }
 
 
+@app.get("/api/worker-stats")
+def api_worker_stats(branch: str, name: str, period: str = "today",
+                      x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """То же самое, что /api/my-stats, но для АДМИНА — можно посмотреть
+    историю зарплаты любого сотрудника филиала (день/неделя/месяц),
+    а не только свою."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    if name not in get_branch_workers(branch):
+        raise HTTPException(404, "Сотрудник не найден в этом филиале")
+
+    if period == "today":
+        session = get_session(branch)
+        stats = _my_day_stats(session, name)
+        stats["date"] = session.get("date")
+        return {"name": name, "period": "today", "stats": stats}
+
+    if period not in ("week", "month"):
+        raise HTTPException(400, "period должен быть today|week|month")
+
+    today = datetime.now()
+    if period == "week":
+        start = (today - timedelta(days=today.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    archive = load_archive()
+    branch_archive = archive.get(branch, {})
+
+    days_out = []
+    total_cars = total_salary = total_revenue = 0
+    for date_str, day in branch_archive.items():
+        try:
+            dt = datetime.strptime(date_str, "%d.%m.%Y")
+        except ValueError:
+            continue
+        if not (start <= dt <= today):
+            continue
+        st = _my_day_stats(day, name)
+        if st["cars"] == 0:
+            continue
+        days_out.append({"date": date_str, **st})
+        total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
+
+    session = get_session(branch)
+    if session.get("cars"):
+        st = _my_day_stats(session, name)
+        if st["cars"] > 0:
+            days_out.append({"date": session.get("date"), **st})
+            total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
+
+    days_out.sort(key=lambda d: datetime.strptime(d["date"], "%d.%m.%Y"))
+    return {
+        "name": name, "period": period,
+        "from": start.strftime("%d.%m.%Y"), "to": today.strftime("%d.%m.%Y"),
+        "total_cars": total_cars, "total_salary": total_salary, "total_revenue": total_revenue,
+        "days": days_out,
+    }
+
+
 @app.get("/api/branches/summary")
 def api_branches_summary(x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Сводка по всем филиалам (сегодня + тренд за 5 дней) — используется на
