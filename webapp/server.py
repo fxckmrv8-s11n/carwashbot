@@ -960,3 +960,15 @@ def index():
         os.path.join(STATIC_DIR, "index.html"),
         headers=NO_CACHE_HEADERS,
     )
+
+
+# ── Отдельная ссылка на сайт (браузерная версия, вне Telegram) ───────────
+# Мини-приложение живёт на "/", сайт — на "/site". Сама страница входа
+# (site-login.html) уже умеет логиниться и дальше сама переключается между
+# /static/dashboard.html, /static/cash.html и т.д. — это не трогаем.
+@app.get("/site")
+def site_entry():
+    return FileResponse(
+        os.path.join(STATIC_DIR, "site-login.html"),
+        headers=NO_CACHE_HEADERS,
+    )
