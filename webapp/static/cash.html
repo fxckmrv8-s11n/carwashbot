@@ -157,6 +157,20 @@ body{
 
       <div class="panel">
         <div class="panel-head">
+          <div class="panel-title">Товары</div>
+          <div style="font-size:13px;color:var(--green);font-weight:700" id="prodTotal">0 ₽</div>
+        </div>
+        <div id="prodList"></div>
+        <div id="prodEmpty" class="empty-note" style="display:none">Товаров пока нет</div>
+        <div class="add-row">
+          <select class="f-name" id="prodSelect" style="flex:1"></select>
+          <select class="f-pay" id="prodPay"></select>
+          <button id="prodAddBtn"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
           <div class="panel-title">Доходы (доп.)</div>
           <div style="font-size:13px;color:var(--green);font-weight:700" id="incTotal">0 ₽</div>
         </div>
@@ -216,6 +230,13 @@ if (CW.requireAuth()) {
       const sel = document.getElementById("incPay");
       sel.innerHTML = cfg.payment_types.map(p => `<option value="${p}">${p[0].toUpperCase() + p.slice(1)}</option>`).join("")
         + `<option value="раздельная">Раздельная</option>`;
+
+      const prodSel = document.getElementById("prodSelect");
+      prodSel.innerHTML = cfg.products.length
+        ? cfg.products.map(p => `<option value="${p.key}">${p.name} — ${p.price}₽</option>`).join("")
+        : `<option value="">Каталог товаров пуст</option>`;
+      const prodPay = document.getElementById("prodPay");
+      prodPay.innerHTML = cfg.payment_types.map(p => `<option value="${p}">${p[0].toUpperCase() + p.slice(1)}</option>`).join("");
     }).catch(() => {});
 
     const incSplitRow = document.getElementById("incSplitRow");
@@ -272,7 +293,25 @@ if (CW.requireAuth()) {
       `;
 
       document.getElementById("expTotal").textContent = "−" + CW.money(summary.total_expenses);
+      document.getElementById("prodTotal").textContent = "+" + CW.money(summary.total_products);
       document.getElementById("incTotal").textContent = "+" + CW.money(summary.total_incomes);
+
+      const products = session.products || [];
+      const prodList = document.getElementById("prodList");
+      const prodEmpty = document.getElementById("prodEmpty");
+      if (!products.length) {
+        prodList.innerHTML = ""; prodEmpty.style.display = "block";
+      } else {
+        prodEmpty.style.display = "none";
+        prodList.innerHTML = products.map(p => `
+          <div class="list-row">
+            <div class="list-name">${p.name}</div>
+            <div class="list-pay"><span class="pay-tag ${p.payment === "visa" ? "card" : (p.payment === "нал" ? "cash" : "transfer")}">${(p.payment || "нал")[0].toUpperCase() + (p.payment || "нал").slice(1)}</span></div>
+            <div class="list-amount pos">+${CW.money(p.price)}</div>
+            <div class="icon-btn" onclick="CW_delProduct(${p.num})"><i class="ti ti-trash"></i></div>
+          </div>
+        `).join("");
+      }
 
       const expenses = session.expenses || [];
       const expList = document.getElementById("expList");
@@ -325,6 +364,16 @@ if (CW.requireAuth()) {
     } catch (e) { showErr(e.message); }
   });
 
+  document.getElementById("prodAddBtn").addEventListener("click", async () => {
+    const key = document.getElementById("prodSelect").value;
+    const payment = document.getElementById("prodPay").value;
+    if (!key) { showErr("Выберите товар из каталога"); return; }
+    try {
+      await CW.authFetch("/api/product", { method: "POST", body: JSON.stringify({ branch, key, payment }) });
+      await load();
+    } catch (e) { showErr(e.message); }
+  });
+
   document.getElementById("incAddBtn").addEventListener("click", async () => {
     const name = document.getElementById("incName").value.trim();
     const amount = parseInt(document.getElementById("incAmount").value, 10);
@@ -362,6 +411,12 @@ if (CW.requireAuth()) {
     } catch (e) { showErr(e.message); }
   });
 
+  window.CW_delProduct = async (num) => {
+    try {
+      await CW.authFetch(`/api/product/${encodeURIComponent(branch)}/${num}`, { method: "DELETE" });
+      await load();
+    } catch (e) { showErr(e.message); }
+  };
   window.CW_delExpense = async (idx) => {
     try {
       await CW.authFetch(`/api/expense/${encodeURIComponent(branch)}/${idx}`, { method: "DELETE" });
