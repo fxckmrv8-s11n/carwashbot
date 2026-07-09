@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarWash Cloud — история изменений</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#0A0A0B;
+  --surface-0:#141414;
+  --surface-1:#1C1C1E;
+  --surface-2:#232325;
+  --surface-3:#2C2C2E;
+  --text:#FFFFFF;
+  --text-secondary:#AEAEB2;
+  --text-muted:#6C6C70;
+  --border:rgba(255,255,255,0.08);
+  --border-strong:rgba(255,255,255,0.14);
+  --accent:#007AFF;
+  --accent-tint:rgba(0,122,255,0.14);
+  --green:#34C759;
+  --green-tint:rgba(52,199,89,0.14);
+  --red:#FF3B30;
+  --red-tint:rgba(255,59,48,0.12);
+  --orange:#FF9F0A;
+  --orange-tint:rgba(255,159,10,0.14);
+  --purple:#BF5AF2;
+  --purple-tint:rgba(191,90,242,0.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Segoe UI,Roboto,sans-serif;
+  background:var(--bg); color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.sidebar{background:var(--surface-1);border-right:0.5px solid var(--border);padding:20px 14px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 24px}
+.brand-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#1a6fff 0%,#3B82F6 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:-0.01em}
+.branch-select{margin-bottom:18px;padding:10px 12px;border-radius:12px;background:var(--surface-2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.branch-select .bs-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.branch-select .bs-value{font-size:13px;font-weight:600}
+.branch-select i{color:var(--text-muted);font-size:14px}
+.nav-group-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;padding:14px 10px 6px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:13.5px;font-weight:500;color:var(--text-secondary);cursor:pointer}
+.nav-item i{font-size:17px;width:18px;text-align:center;color:var(--text-muted)}
+.nav-item.active{background:var(--accent-tint);color:var(--accent)}
+.nav-item.active i{color:var(--accent)}
+.nav-item:hover:not(.active){background:var(--surface-2)}
+.sidebar-foot{margin-top:auto;padding-top:14px;border-top:0.5px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px}
+.user-av{width:32px;height:32px;border-radius:50%;background:var(--purple-tint);color:var(--purple);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.user-name{font-size:13px;font-weight:600}
+.user-role{font-size:11px;color:var(--text-muted)}
+
+.main{padding:24px 32px 48px;max-width:1160px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px}
+.page-title{font-size:24px;font-weight:700;letter-spacing:-0.02em}
+.page-sub{font-size:13px;color:var(--text-secondary);margin-top:3px}
+.head-actions{display:flex;gap:8px}
+.btn{height:38px;padding:0 16px;border-radius:10px;border:none;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn.secondary{background:var(--surface-1);color:var(--text);border:0.5px solid var(--border)}
+
+.panel{background:var(--surface-1);border:0.5px solid var(--border);border-radius:14px;overflow:hidden}
+.panel-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 12px}
+.panel-title{font-size:14.5px;font-weight:700}
+
+.entry{display:flex;gap:12px;padding:13px 18px;border-top:0.5px solid var(--border)}
+.entry-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.entry-body{flex:1;min-width:0}
+.entry-top{display:flex;justify-content:space-between;gap:10px}
+.entry-action{font-size:13.5px;font-weight:600}
+.entry-time{font-size:11.5px;color:var(--text-muted);white-space:nowrap}
+.entry-details{font-size:12.5px;color:var(--text-secondary);margin-top:2px;word-break:break-word}
+.entry-actor{font-size:11.5px;color:var(--text-muted);margin-top:3px}
+
+.empty-note{padding:32px 18px;font-size:13px;color:var(--text-muted);text-align:center}
+.err-banner{background:var(--red-tint);color:var(--red);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px;display:none}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="sidebar" id="sidebarRoot"></div>
+
+  <div class="main">
+    <div class="err-banner" id="errBanner"></div>
+
+    <div class="page-head">
+      <div>
+        <div class="page-title">История изменений</div>
+        <div class="page-sub" id="pageSub">—</div>
+      </div>
+      <div class="head-actions">
+        <button class="btn secondary" id="refreshBtn"><i class="ti ti-refresh"></i>Обновить</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Последние действия</div>
+      </div>
+      <div id="entriesList"></div>
+      <div id="entriesEmpty" class="empty-note" style="display:none">Пока ничего не происходило</div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/site-common.js"></script>
+<script>
+if (CW.requireAuth()) {
+  CW.renderSidebar("history");
+
+  const branch = CW.getActiveBranch();
+  const errEl = document.getElementById("errBanner");
+  function showErr(msg) { errEl.textContent = msg; errEl.style.display = "block"; }
+
+  const ACTION_META = {
+    add:             { icon: "ti-plus",          color: "green",  label: "Добавлена машина" },
+    edit:            { icon: "ti-pencil",        color: "accent", label: "Изменена машина" },
+    delete:          { icon: "ti-trash",         color: "red",    label: "Удалена машина" },
+    status:          { icon: "ti-check",         color: "green",  label: "Изменён статус машины" },
+    expense_add:     { icon: "ti-minus",         color: "red",    label: "Добавлен расход" },
+    expense_delete:  { icon: "ti-trash",         color: "red",    label: "Удалён расход" },
+    income_add:      { icon: "ti-plus",          color: "green",  label: "Добавлен доход" },
+    income_delete:   { icon: "ti-trash",         color: "red",    label: "Удалён доход" },
+    product_add:     { icon: "ti-shopping-cart", color: "purple", label: "Продан товар" },
+    product_delete:  { icon: "ti-trash",         color: "red",    label: "Удалён товар" },
+    loyalty_delete:  { icon: "ti-heart",         color: "purple", label: "Удалена скидка" },
+    newday:          { icon: "ti-calendar-event",color: "orange", label: "Смена закрыта" },
+  };
+
+  if (!branch) {
+    showErr("Филиал не выбран. Выберите филиал в сайдбаре.");
+  } else {
+    document.getElementById("pageSub").textContent = `${branch} · последние 100 действий`;
+    load();
+  }
+
+  document.getElementById("refreshBtn").addEventListener("click", load);
+
+  async function load() {
+    errEl.style.display = "none";
+    try {
+      const data = await CW.authFetch(`/api/history?branch=${encodeURIComponent(branch)}&limit=100`);
+      const entries = data.entries || [];
+      const list = document.getElementById("entriesList");
+      const empty = document.getElementById("entriesEmpty");
+      if (!entries.length) {
+        list.innerHTML = ""; empty.style.display = "block"; return;
+      }
+      empty.style.display = "none";
+      list.innerHTML = entries.map(e => {
+        const meta = ACTION_META[e.action] || { icon: "ti-dots", color: "accent", label: e.action };
+        const isWarn = e.action === "newday" && (e.details || "").includes("не сошлась");
+        const color = isWarn ? "red" : meta.color;
+        return `
+          <div class="entry">
+            <div class="entry-icon" style="background:var(--${color}-tint);color:var(--${color})"><i class="ti ${meta.icon}"></i></div>
+            <div class="entry-body">
+              <div class="entry-top">
+                <div class="entry-action">${meta.label}</div>
+                <div class="entry-time">${e.at || ""}</div>
+              </div>
+              ${e.details ? `<div class="entry-details">${e.details}</div>` : ""}
+              <div class="entry-actor"><i class="ti ti-user" style="font-size:11px;vertical-align:-1px"></i> ${e.actor_name || "—"}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    } catch (e) {
+      showErr(e.message);
+    }
+  }
+}
+</script>
+</body>
+</html>

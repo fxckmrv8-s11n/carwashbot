@@ -78,6 +78,7 @@ const CW = (() => {
       { key: "reports", icon: "ti-chart-bar", label: "Отчёты", href: "/static/reports.html" },
     ]},
     { group: "Система", items: [
+      { key: "history", icon: "ti-history", label: "История изменений", href: "/static/history.html", adminOnly: true },
       { key: "branches", icon: "ti-building-store", label: "Филиалы", href: "/static/branches.html", ownerOnly: true },
       { key: "settings", icon: "ti-settings", label: "Настройки", href: "/static/settings.html" },
     ]},
@@ -102,7 +103,10 @@ const CW = (() => {
     const role = getRole();
 
     const navHtml = NAV.map(group => {
-      const items = group.items.filter(it => !it.ownerOnly || role === "владелец");
+      const items = group.items.filter(it =>
+        (!it.ownerOnly || role === "владелец") &&
+        (!it.adminOnly || role === "админ" || role === "владелец")
+      );
       if (!items.length) return "";
       const itemsHtml = items.map(it => `
         <div class="nav-item ${it.key === activeKey ? "active" : ""}" data-href="${it.href}">

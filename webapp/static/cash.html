@@ -207,6 +207,7 @@ if (CW.requireAuth()) {
   CW.renderSidebar("cash");
 
   const branch = CW.getActiveBranch();
+  let lastSummary = null;
   const errEl = document.getElementById("errBanner");
   function showErr(msg) { errEl.textContent = msg; errEl.style.display = "block"; }
 
@@ -284,6 +285,7 @@ if (CW.requireAuth()) {
       const data = await CW.authFetch(`/api/session?branch=${encodeURIComponent(branch)}`);
       const session = data.session || {};
       const summary = data.summary || {};
+      lastSummary = summary;
 
       document.getElementById("payRow").innerHTML = `
         <div class="stat-card"><div class="sc-label">Наличные</div><div class="sc-value">${CW.money(summary.cash)}</div></div>
@@ -433,12 +435,31 @@ if (CW.requireAuth()) {
   const closeBtn = document.getElementById("closeBtn");
   if (closeBtn) {
     closeBtn.addEventListener("click", async () => {
+      const expectedCash = lastSummary ? (lastSummary.cash || 0) : 0;
+      const input = prompt(
+        `Сверка кассы\n\nПо системе наличных должно быть: ${CW.money(expectedCash)}\n\nВведите, сколько реально насчитали в кассе (₽).\nОставьте пустым, если сверку делать не нужно.`,
+        String(expectedCash)
+      );
+      if (input === null) return; // отмена
+
       if (!confirm(`Закрыть смену филиала «${branch}»?\n\nДень будет сохранён в архив, касса обнулится. Отменить это действие нельзя.`)) return;
       closeBtn.disabled = true;
       try {
-        await CW.authFetch(`/api/newday?branch=${encodeURIComponent(branch)}`, { method: "POST" });
+        const body = {};
+        if (input.trim() !== "") {
+          const actual = parseInt(input.replace(/[^\d-]/g, ""), 10);
+          if (!isNaN(actual)) body.actual_cash = actual;
+        }
+        const res = await CW.authFetch(`/api/newday?branch=${encodeURIComponent(branch)}`, {
+          method: "POST", body: JSON.stringify(body),
+        });
         await load();
-        alert("Смена закрыта и сохранена в архив.");
+        if (res.discrepancy != null && res.discrepancy !== 0) {
+          const sign = res.discrepancy < 0 ? "Недостача" : "Излишек";
+          alert(`Смена закрыта.\n\n⚠️ Касса не сошлась!\n${sign}: ${CW.money(Math.abs(res.discrepancy))}\n(записано в историю изменений)`);
+        } else {
+          alert("Смена закрыта и сохранена в архив. Касса сошлась ✅");
+        }
       } catch (e) {
         showErr(e.message);
       } finally {

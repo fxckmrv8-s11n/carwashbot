@@ -145,7 +145,7 @@ table.data tr:hover td{background:var(--surface-2)}
 <!-- Модалка добавления машины -->
 <div class="modal-bg" id="modalBg">
   <div class="modal">
-    <h2>Добавить машину</h2>
+    <h2 id="modalTitle">Добавить машину</h2>
 
     <div class="field">
       <label>Клиент / машина</label>
@@ -211,6 +211,8 @@ if (CW.requireAuth()) {
 
   let cfg = null;
   let workers = [];
+  let currentCars = [];
+  let editingNum = null;
   const branch = CW.getActiveBranch();
 
   const errEl = document.getElementById("errBanner");
@@ -287,15 +289,39 @@ if (CW.requireAuth()) {
     document.getElementById("fTotal").textContent = CW.money(total);
   }
 
-  function openModal() {
+  function openModal(car) {
+    editingNum = car ? car.num : null;
+    document.getElementById("modalTitle").textContent = car ? `Редактировать машину #${car.num}` : "Добавить машину";
+    document.getElementById("saveBtn").textContent = car ? "Сохранить" : "Добавить";
     document.getElementById("modalErr").style.display = "none";
-    document.getElementById("fCar").value = "";
-    document.getElementById("fComment").value = "";
-    document.querySelectorAll("#svcGrid input").forEach(i => { i.checked = false; i.closest(".svc-item").classList.remove("checked"); });
+    document.getElementById("fCar").value = car ? (car.car || "") : "";
+    document.getElementById("fComment").value = car ? (car.comment || "") : "";
+
+    document.getElementById("fBodyType").value = car ? car.body_type : document.getElementById("fBodyType").value;
+    document.getElementById("fEmployee").value = car ? car.employee : document.getElementById("fEmployee").value;
+
+    const carServiceKeys = car ? (car.service_keys || []) : [];
+    document.querySelectorAll("#svcGrid input").forEach(i => {
+      const checked = carServiceKeys.includes(i.value);
+      i.checked = checked;
+      i.closest(".svc-item").classList.toggle("checked", checked);
+    });
+
+    const payGrid = document.getElementById("payGrid");
+    payGrid.querySelectorAll(".pay-btn").forEach(b => b.classList.remove("active"));
+    const payToMatch = car ? (car.payment_split ? Object.keys(car.payment_split)[0] : car.payment) : null;
+    const matchBtn = payToMatch && Array.from(payGrid.children).find(b => b.dataset.pay === payToMatch);
+    (matchBtn || payGrid.firstElementChild)?.classList.add("active");
+
     updateTotal();
     document.getElementById("modalBg").classList.add("open");
   }
-  function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
+  function closeModal() { document.getElementById("modalBg").classList.remove("open"); editingNum = null; }
+
+  window.CW_editCar = (num) => {
+    const car = currentCars.find(c => c.num === num);
+    if (car) openModal(car);
+  };
 
   document.getElementById("addCarBtn").addEventListener("click", () => {
     if (!branch) { showErr("Сначала выберите филиал"); return; }
@@ -322,15 +348,21 @@ if (CW.requireAuth()) {
     const saveBtn = document.getElementById("saveBtn");
     saveBtn.disabled = true;
     try {
-      await CW.authFetch("/api/car", {
-        method: "POST",
-        body: JSON.stringify({
-          branch, employee, body_type: bodyType,
-          service_keys: serviceKeys, custom_services: [],
-          car: document.getElementById("fCar").value.trim(),
-          payment, comment: document.getElementById("fComment").value.trim(),
-        }),
-      });
+      const payload = {
+        employee, body_type: bodyType,
+        service_keys: serviceKeys, custom_services: [],
+        car: document.getElementById("fCar").value.trim(),
+        payment, comment: document.getElementById("fComment").value.trim(),
+      };
+      if (editingNum) {
+        await CW.authFetch(`/api/car/${encodeURIComponent(branch)}/${editingNum}`, {
+          method: "PUT", body: JSON.stringify(payload),
+        });
+      } else {
+        await CW.authFetch("/api/car", {
+          method: "POST", body: JSON.stringify({ branch, ...payload }),
+        });
+      }
       closeModal();
       await loadCars();
     } catch (e) {
@@ -367,6 +399,7 @@ if (CW.requireAuth()) {
     try {
       const data = await CW.authFetch(`/api/session?branch=${encodeURIComponent(branch)}`);
       const cars = (data.session && data.session.cars) || [];
+      currentCars = cars;
       const table = document.getElementById("carsTable");
       const empty = document.getElementById("carsEmpty");
       if (!cars.length) {
@@ -391,6 +424,7 @@ if (CW.requireAuth()) {
           <td style="text-align:right;font-weight:600">${CW.money(c.price)}</td>
           <td>
             <div class="row-actions">
+              <div class="icon-btn" title="Редактировать" onclick="CW_editCar(${c.num})"><i class="ti ti-pencil"></i></div>
               <div class="icon-btn danger" onclick="CW_deleteCar(${c.num})"><i class="ti ti-trash"></i></div>
             </div>
           </td>
