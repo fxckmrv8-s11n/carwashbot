@@ -686,18 +686,54 @@ def api_delete_product(branch: str, num: int, x_init_data: str = Header(default=
 def api_archive(branch: str, limit: int = 14, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
     archive = load_archive()
-    days = archive.get(branch, [])
-    return {"days": days[-limit:][::-1]}
+    branch_archive = archive.get(branch, {})  # {"04.07.2026": {...cars, products, ...}, ...}
+
+    days = []
+    for date_str, day in branch_archive.items():
+        try:
+            dt = datetime.strptime(date_str, "%d.%m.%Y")
+        except ValueError:
+            continue
+        days.append((dt, {"date": date_str, **day}))
+
+    days.sort(key=lambda pair: pair[0], reverse=True)  # сначала самые свежие
+    return {"days": [d for _, d in days[:limit]]}
+
+
+class NewDayIn(BaseModel):
+    actual_cash: Optional[int] = None  # сколько реально насчитали в кассе (наличные), для сверки
 
 
 @app.post("/api/newday")
-def api_newday(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+def api_newday(branch: str, body: Optional[NewDayIn] = None,
+               x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_branch_admin(branch, x_init_data, x_site_token)
+    body = body or NewDayIn()
     session = get_session(branch)
-    if session.get("cars") or session.get("products"):
+    had_data = session.get("cars") or session.get("products")
+
+    discrepancy = None
+    if had_data and body.actual_cash is not None:
+        summary = calculate_summary(session)
+        expected_cash = summary["cash"]
+        discrepancy = body.actual_cash - expected_cash
+        session["actual_cash"] = body.actual_cash
+        session["cash_discrepancy"] = discrepancy
+
+    if had_data:
         save_to_archive(branch, session)
+
+    actor_id, actor_name = current_user_id(x_init_data), current_user_name(x_init_data)
+    if discrepancy is not None and discrepancy != 0:
+        sign = "недостача" if discrepancy < 0 else "излишек"
+        log_action(branch, "newday", actor_id, actor_name,
+                   f"Смена закрыта · касса не сошлась: {sign} {abs(discrepancy)}₽ "
+                   f"(в системе {expected_cash}₽, по факту {body.actual_cash}₽)")
+    else:
+        log_action(branch, "newday", actor_id, actor_name, "Смена закрыта")
+
     reset_session(branch)
-    return {"ok": True}
+    return {"ok": True, "discrepancy": discrepancy}
 
 
 @app.get("/api/reports/today")
@@ -1017,7 +1053,7 @@ def api_report_xlsx(branch: str, date: str = "", x_init_data: str = Header(defau
 # ── История изменений кассы ──────────────────────────────────────────────
 @app.get("/api/history")
 def api_history(branch: str, limit: int = 100, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    require_access(x_init_data, x_site_token)
+    require_branch_admin(branch, x_init_data, x_site_token)
     return {"entries": get_history(branch, limit)}
 
 
