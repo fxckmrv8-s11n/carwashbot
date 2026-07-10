@@ -233,10 +233,10 @@ if (CW.requireAuth()) {
   } else {
     document.getElementById("pageSub").textContent = `${branch} · ${CW.todayLabel()}`;
     document.getElementById("pdfBtn").onclick = () => {
-      window.location.href = `/api/reports/pdf?branch=${encodeURIComponent(branch)}`;
+      CW.downloadFile(`/api/reports/pdf?branch=${encodeURIComponent(branch)}`, `Касса_${branch}.pdf`).catch(e => showErr(e.message));
     };
     document.getElementById("xlsxBtn").onclick = () => {
-      window.location.href = `/api/reports/xlsx?branch=${encodeURIComponent(branch)}`;
+      CW.downloadFile(`/api/reports/xlsx?branch=${encodeURIComponent(branch)}`, `Касса_${branch}.xlsx`).catch(e => showErr(e.message));
     };
     loadToday();
   }
@@ -361,7 +361,9 @@ if (CW.requireAuth()) {
   }
 
   window.CW_archiveExport = (date, kind) => {
-    window.location.href = `/api/reports/${kind}?branch=${encodeURIComponent(branch)}&date=${encodeURIComponent(date)}`;
+    const ext = kind === "xlsx" ? "xlsx" : "pdf";
+    CW.downloadFile(`/api/reports/${kind}?branch=${encodeURIComponent(branch)}&date=${encodeURIComponent(date)}`,
+      `Касса_${branch}_${date}.${ext}`).catch(e => showErr(e.message));
   };
 
   async function loadAllBranches() {

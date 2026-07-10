@@ -189,7 +189,7 @@ if (CW.requireAuth()) {
   } else {
     document.getElementById("pageSub").textContent = `${branch} · ${CW.todayLabel()}`;
     document.getElementById("exportBtn").onclick = () => {
-      window.location.href = `/api/reports/pdf?branch=${encodeURIComponent(branch)}`;
+      CW.downloadFile(`/api/reports/pdf?branch=${encodeURIComponent(branch)}`, `Касса_${branch}.pdf`).catch(e => (typeof showErr === "function" ? showErr(e.message) : alert(e.message)));
     };
 
     let cfg = null;

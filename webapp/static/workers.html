@@ -83,6 +83,8 @@ body{
 .tag.working{background:var(--green-tint);color:var(--green)}
 .tag.resting{background:var(--red-tint);color:var(--red)}
 .tag.noschedule{background:var(--surface-2);color:var(--text-muted)}
+.tag.rate{background:var(--orange-tint);color:var(--orange)}
+.icon-btn.rate-active{background:var(--orange-tint);color:var(--orange);border-color:var(--orange)}
 .tag.admin{background:var(--purple-tint);color:var(--purple)}
 .worker-actions{display:flex;gap:6px;flex-shrink:0}
 .icon-btn{width:30px;height:30px;border-radius:9px;border:0.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
@@ -253,6 +255,8 @@ if (CW.requireAuth()) {
 
   let workersCache = [];
   let scheduleCache = {};
+  let carsCache = [];
+  let fixedRatesCache = {};
 
   async function load() {
     errEl.style.display = "none";
@@ -260,6 +264,9 @@ if (CW.requireAuth()) {
       const data = await CW.authFetch(`/api/workers?branch=${encodeURIComponent(branch)}`);
       workersCache = data.workers || [];
       scheduleCache = data.schedule || {};
+      const sessData = await CW.authFetch(`/api/session?branch=${encodeURIComponent(branch)}`);
+      carsCache = (sessData.session && sessData.session.cars) || [];
+      fixedRatesCache = (sessData.summary && sessData.summary.fixed_rates) || {};
       renderWorkers();
       if (role === "владелец") renderAdminSub(data.admin_id);
     } catch (e) { showErr(e.message); }
@@ -303,16 +310,20 @@ if (CW.requireAuth()) {
       if (!st.schedule) tag = `<span class="tag noschedule">без графика</span>`;
       else tag = st.working ? `<span class="tag working">работает сегодня</span>` : `<span class="tag resting">отдыхает</span>`;
       const schedMeta = st.schedule ? `${st.schedule.work}/${st.schedule.rest} · с ${st.schedule.start}` : "график не задан";
+      const carsToday = carsCache.filter(c => c.employee === name).length;
+      const rate = fixedRatesCache[name];
+      const rateTag = rate ? `<span class="tag rate">ставка ${rate}₽</span>` : "";
       return `
         <div class="worker-row">
           <div class="worker-av">${CW.initials(name)}</div>
           <div class="worker-info">
-            <div class="worker-name">${name} ${tag}</div>
-            <div class="worker-meta">${schedMeta}</div>
+            <div class="worker-name">${name} ${tag} ${rateTag}</div>
+            <div class="worker-meta">${schedMeta} · машин сегодня: ${carsToday}</div>
           </div>
           ${canManage ? `
           <div class="worker-actions">
             <div class="icon-btn" title="Зарплата за период" onclick="CW_openSalary('${name.replace(/'/g, "\\'")}')"><i class="ti ti-report-money"></i></div>
+            <div class="icon-btn ${rate ? "rate-active" : ""}" title="${rate ? "Изменить/убрать ставку" : "Поставить ставку (если 0 машин за день)"}" onclick="CW_toggleRate('${name.replace(/'/g, "\\'")}', ${rate || 0})"><i class="ti ti-cash-banknote"></i></div>
             <div class="icon-btn" title="Настроить график" onclick="CW_openSched('${name.replace(/'/g, "\\'")}')"><i class="ti ti-calendar-time"></i></div>
             <div class="icon-btn del" title="Удалить сотрудника" onclick="CW_delWorker('${name.replace(/'/g, "\\'")}')"><i class="ti ti-trash"></i></div>
           </div>` : ""}
@@ -338,6 +349,27 @@ if (CW.requireAuth()) {
       await CW.authFetch(`/api/workers/${encodeURIComponent(branch)}/${encodeURIComponent(name)}`, { method: "DELETE" });
       await load();
       await loadWeek();
+    } catch (e) { showErr(e.message); }
+  };
+
+  // ── Ставка (фикс. зарплата за день, например при 0 машин) ──────────
+  window.CW_toggleRate = async (name, currentRate) => {
+    const input = prompt(
+      currentRate
+        ? `Ставка для ${name} на сегодня: ${currentRate}₽.\n\nВведи новую сумму, или 0 — чтобы убрать ставку.`
+        : `Ставка для ${name} на сегодня (например, если 0 машин).\n\nВведи сумму (₽):`,
+      currentRate || "1000"
+    );
+    if (input === null) return;
+    const amount = parseInt(input.replace(/[^\d]/g, ""), 10) || 0;
+    try {
+      if (amount <= 0) {
+        if (!currentRate) return; // нечего убирать
+        await CW.authFetch(`/api/fixed-rate/${encodeURIComponent(branch)}/${encodeURIComponent(name)}`, { method: "DELETE" });
+      } else {
+        await CW.authFetch("/api/fixed-rate", { method: "POST", body: JSON.stringify({ branch, worker: name, amount }) });
+      }
+      await load();
     } catch (e) { showErr(e.message); }
   };
 

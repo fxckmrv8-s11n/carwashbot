@@ -56,6 +56,27 @@ const CW = (() => {
     return data;
   }
 
+  async function downloadFile(path, filenameFallback) {
+    const headers = { "X-Site-Token": getToken() };
+    const res = await fetch(API + path, { headers });
+    if (res.status === 401) { logout(); throw new Error("Сессия истекла"); }
+    if (!res.ok) {
+      let msg = `Ошибка запроса (${res.status})`;
+      try { const data = await res.json(); if (data && data.detail) msg = data.detail; } catch (e) {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    let filename = filenameFallback || "file";
+    const disp = res.headers.get("Content-Disposition") || "";
+    const m = disp.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    if (m) { try { filename = decodeURIComponent(m[1]); } catch (e) { filename = m[1]; } }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
   function logout() {
     localStorage.removeItem("cw_token");
     localStorage.removeItem("cw_name");
@@ -177,7 +198,7 @@ const CW = (() => {
   return {
     getToken, getName, getRole, getLoginBranch,
     getActiveBranch, setActiveBranch,
-    requireAuth, authFetch, logout,
+    requireAuth, authFetch, downloadFile, logout,
     renderSidebar, initials, roleLabel, money, todayLabel,
   };
 })();
