@@ -186,6 +186,7 @@ class CarIn(BaseModel):
     car: str = ""
     payment: str
     payment_split: Optional[Dict[str, int]] = None   # {"нал": 800, "безнал": 1200}
+    price_override: Optional[int] = None   # ручная правка итоговой суммы (скидка/наценка)
     comment: str = ""
 
 
@@ -242,6 +243,8 @@ class CarEditIn(BaseModel):
     car: Optional[str] = None
     payment: Optional[str] = None
     payment_split: Optional[Dict[str, int]] = None
+    price_override: Optional[int] = None   # ручная правка итоговой суммы; чтобы снять — передать 0 не получится, см. clear_price_override
+    clear_price_override: bool = False     # true → вернуть цену к расчётной по услугам
     comment: Optional[str] = None
     status: Optional[str] = None
 
@@ -443,7 +446,13 @@ def api_add_car(body: CarIn, x_init_data: str = Header(default=""), x_site_token
     if not breakdown:
         raise HTTPException(400, "Нужна хотя бы одна услуга")
 
-    total_price = sum(v["price"] for v in breakdown.values())
+    calc_price = sum(v["price"] for v in breakdown.values())
+    total_price = calc_price
+    if body.price_override is not None:
+        if body.price_override < 0:
+            raise HTTPException(400, "Итоговая сумма не может быть отрицательной")
+        total_price = int(body.price_override)
+
     if body.payment_split:
         split_sum = sum(body.payment_split.values())
         if split_sum != total_price:
@@ -459,6 +468,8 @@ def api_add_car(body: CarIn, x_init_data: str = Header(default=""), x_site_token
         "price_breakdown": breakdown,
         "service": " + ".join(v["name"] for v in breakdown.values()),
         "price": total_price,
+        "price_calc": calc_price,
+        "price_override": total_price if total_price != calc_price else None,
         "car": body.car,
         "payment": body.payment,
         "payment_split": body.payment_split,
@@ -518,17 +529,31 @@ def api_edit_car(branch: str, num: int, body: CarEditIn, x_init_data: str = Head
         breakdown = _rebuild_car_breakdown(body_type, service_keys, custom_services)
         if not breakdown:
             raise HTTPException(400, "Нужна хотя бы одна услуга")
-        total_price = sum(v["price"] for v in breakdown.values())
-        if car.get("payment_split"):
-            split_sum = sum(car["payment_split"].values())
-            if split_sum != total_price:
-                raise HTTPException(400, f"Сумма раздельной оплаты ({split_sum}₽) не совпадает со стоимостью ({total_price}₽)")
         car["body_type"] = body_type
         car["service_keys"] = service_keys
         car["custom_services"] = custom_services
         car["price_breakdown"] = breakdown
         car["service"] = " + ".join(v["name"] for v in breakdown.values())
-        car["price"] = total_price
+        car["price_calc"] = sum(v["price"] for v in breakdown.values())
+        if car.get("price_override") is not None and not body.clear_price_override and body.price_override is None:
+            pass  # ручная цена сохраняется при смене состава услуг, пока её явно не сбросили
+        else:
+            car["price"] = car["price_calc"]
+            car["price_override"] = None
+
+    if body.clear_price_override:
+        car["price"] = car.get("price_calc", car["price"])
+        car["price_override"] = None
+    elif body.price_override is not None:
+        if body.price_override < 0:
+            raise HTTPException(400, "Итоговая сумма не может быть отрицательной")
+        car["price"] = int(body.price_override)
+        car["price_override"] = int(body.price_override)
+
+    if car.get("payment_split"):
+        split_sum = sum(car["payment_split"].values())
+        if split_sum != car["price"]:
+            raise HTTPException(400, f"Сумма раздельной оплаты ({split_sum}₽) не совпадает со стоимостью ({car['price']}₽)")
 
     save_sessions()
     log_action(branch, "edit", current_user_id(x_init_data), current_user_name(x_init_data),
