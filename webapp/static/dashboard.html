@@ -192,9 +192,10 @@ if (CW.requireAuth()) {
 
   function payTag(method) {
     const m = (method || "").toLowerCase();
-    if (m.includes("нал") || m === "cash") return `<span class="pay-tag cash">Нал</span>`;
     if (m.includes("виз") || m === "visa") return `<span class="pay-tag card">Visa</span>`;
-    return `<span class="pay-tag transfer">Безнал</span>`;
+    if (m.includes("безнал") || m === "transfer") return `<span class="pay-tag transfer">Безнал</span>`;
+    if (m.includes("нал") || m === "cash") return `<span class="pay-tag cash">Нал</span>`;
+    return `<span class="pay-tag transfer">${method || "—"}</span>`;
   }
 
   async function load() {

@@ -27,12 +27,7 @@
   --purple-tint:rgba(164,124,243,0.14);
 }
 
-body{
-  background:
-    radial-gradient(circle at 12% 0%, rgba(124,108,246,0.10), transparent 40%),
-    radial-gradient(circle at 90% 15%, rgba(78,155,255,0.07), transparent 45%),
-    var(--bg);
-}
+body{ background:var(--bg); }
 
 *{ -webkit-font-smoothing:antialiased; scrollbar-width:thin; scrollbar-color:var(--surface-3) transparent; }
 ::-webkit-scrollbar{ width:8px; height:8px; }
@@ -42,7 +37,12 @@ body{
 body{ letter-spacing:-0.006em; }
 
 /* ── Каркас ── */
-.shell{ background:var(--bg); }
+.shell{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(124,108,246,0.10), transparent 40%),
+    radial-gradient(circle at 90% 15%, rgba(78,155,255,0.07), transparent 45%),
+    var(--bg);
+}
 .sidebar{
   background:var(--surface-0);
   border-right:0.5px solid var(--border);
@@ -91,7 +91,7 @@ body{ letter-spacing:-0.006em; }
 }
 
 /* ── Контент ── */
-.main{ background:var(--bg); }
+.main{ background:transparent; }
 .page-title{ letter-spacing:-0.025em; font-weight:800; }
 .page-sub{ color:var(--text-secondary); }
 
