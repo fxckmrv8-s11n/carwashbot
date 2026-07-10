@@ -32,7 +32,7 @@ from sessions import (
     get_branch_workers, get_branch_admin, is_branch_admin, set_branch_admin,
     add_branch_worker, remove_branch_worker,
     get_branch_admin_names, add_branch_admin_name, remove_branch_admin_name,
-    get_session_admin_name, set_session_admin_name,
+    get_session_admin_name, set_session_admin_name, set_archive_admin_name,
     load_archive, load_users, save_users, add_user, remove_user,
     set_worker_schedule, clear_worker_schedule, get_worker_schedule,
     get_schedule_status, is_working_on,
@@ -247,6 +247,11 @@ class AdminOnDutyIn(BaseModel):
     name: str  # "" — снять дежурного
 
 
+class AdminHistoryBackfillIn(BaseModel):
+    branch: str
+    assignments: Dict[str, str]  # {"10.07.2026": "Салим", "09.07.2026": "Иззет", ...}
+
+
 class CarEditIn(BaseModel):
     employee: Optional[str] = None
     body_type: Optional[str] = None
@@ -445,6 +450,49 @@ def api_set_admin_on_duty(body: AdminOnDutyIn, x_init_data: str = Header(default
         raise HTTPException(404, "Этого администратора нет в списке филиала")
     set_session_admin_name(body.branch, name)
     return {"ok": True, "admin_on_duty": name}
+
+
+@app.get("/api/admin-history")
+def api_admin_history(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Список архивных смен филиала (дата, кто дежурил сейчас проставлено,
+    сколько машин/выручка) — для ручного заполнения истории задним числом,
+    см. POST /api/admin-history."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    archive = load_archive()
+    branch_archive = archive.get(branch, {})
+    days = []
+    for date_str, day in branch_archive.items():
+        s = calculate_summary(day)
+        days.append({
+            "date": date_str,
+            "admin_name": day.get("admin_name", ""),
+            "cars": len(day.get("cars", [])),
+            "revenue": s["total"],
+            "admin_salary": s["admin_salary"],
+        })
+    try:
+        days.sort(key=lambda d: datetime.strptime(d["date"], "%d.%m.%Y"), reverse=True)
+    except ValueError:
+        pass
+    return {"branch": branch, "days": days, "admins": get_branch_admin_names(branch)}
+
+
+@app.post("/api/admin-history")
+def api_backfill_admin_history(body: AdminHistoryBackfillIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Проставить задним числом, кто дежурил администратором в конкретные
+    уже закрытые смены — чтобы у истории зарплаты (/api/admin-stats)
+    появились данные за дни ДО того, как это поле начали сохранять."""
+    require_branch_admin(body.branch, x_init_data, x_site_token)
+    roster = get_branch_admin_names(body.branch)
+    updated, skipped = [], []
+    for date_str, name in body.assignments.items():
+        name = (name or "").strip()
+        if name and name not in roster:
+            skipped.append(date_str)
+            continue
+        ok = set_archive_admin_name(body.branch, date_str, name)
+        (updated if ok else skipped).append(date_str)
+    return {"ok": True, "updated": updated, "skipped": skipped}
 
 
 @app.get("/api/users")
