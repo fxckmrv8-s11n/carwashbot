@@ -183,7 +183,7 @@ table.data tr:hover td{background:var(--surface-2)}
 if (CW.requireAuth()) {
   CW.renderSidebar("dashboard");
 
-  const empDotColors = ["#3B82F6", "#34C759", "#FF9F0A", "#BF5AF2", "#FF3B30", "#00C7BE"];
+  const empDotColors = ["#4E9BFF", "#3ED598", "#FFB648", "#A47CF3", "#FF6B8B", "#00C7BE"];
   function empColor(name) {
     let h = 0;
     for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % empDotColors.length;
