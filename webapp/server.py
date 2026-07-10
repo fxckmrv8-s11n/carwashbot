@@ -645,6 +645,43 @@ def api_delete_income(branch: str, idx: int, x_init_data: str = Header(default="
     return {"ok": True, "summary": calculate_summary(session)}
 
 
+class FixedRateIn(BaseModel):
+    branch: str
+    worker: str
+    amount: int
+
+
+@app.post("/api/fixed-rate")
+def api_set_fixed_rate(body: FixedRateIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Ставка — фиксированная зарплата за день (например, если мойщик не помыл
+    ни одной машины). Добавляется к зарплате сверх расчёта по машинам."""
+    require_branch_admin(body.branch, x_init_data, x_site_token)
+    if body.worker not in get_branch_workers(body.branch):
+        raise HTTPException(404, "Сотрудник не найден в этом филиале")
+    if body.amount <= 0:
+        raise HTTPException(400, "Сумма ставки должна быть больше нуля")
+    session = get_session(body.branch)
+    session.setdefault("fixed_rates", {})[body.worker] = body.amount
+    save_sessions()
+    log_action(body.branch, "fixed_rate_set", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{body.worker} · ставка {body.amount}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
+@app.delete("/api/fixed-rate/{branch}/{worker}")
+def api_clear_fixed_rate(branch: str, worker: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
+    session = get_session(branch)
+    rates = session.get("fixed_rates", {})
+    if worker not in rates:
+        raise HTTPException(404, "Ставка не установлена")
+    removed = rates.pop(worker)
+    save_sessions()
+    log_action(branch, "fixed_rate_clear", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{worker} · убрана ставка {removed}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
 @app.post("/api/product")
 def api_add_product(body: ProductIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Товар из каталога (см. config.PRODUCTS) — в отличие от 'Доходов', сумма
