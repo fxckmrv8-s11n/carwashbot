@@ -219,6 +219,25 @@ def save_to_archive(branch: str, session: dict):
     _update_json_locked(ARCHIVE_FILE, _update)
 
 
+def set_archive_admin_name(branch: str, date: str, name: str) -> bool:
+    """Задним числом проставить, кто дежурил администратором в уже
+    архивированный день (нужно для истории зарплаты — раньше это поле
+    не сохранялось). Возвращает False, если такого дня нет в архиве."""
+    result = {"ok": False}
+
+    def _update(archive):
+        day = archive.get(branch, {}).get(date)
+        if day is None:
+            result["ok"] = False
+            return archive
+        day["admin_name"] = name
+        result["ok"] = True
+        return archive
+
+    _update_json_locked(ARCHIVE_FILE, _update)
+    return result["ok"]
+
+
 # ── КОНФИГ ФИЛИАЛОВ: админ + сотрудники ─────────────────────────────────────
 # branches_config.json: { branch: {"admin": user_id|0, "workers": [str, ...]} }
 
