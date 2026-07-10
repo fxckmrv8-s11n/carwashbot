@@ -108,6 +108,15 @@ def calculate_summary(session: dict) -> dict:
     admin_base    = total_washers + total_products
     admin_salary  = round_salary(admin_base * session.get("admin_percent", SALARY_ADMIN))
 
+    # Фиксированная ставка ("Ставка") — на случай, если мойщик за день не помыл
+    # ни одной машины (или просто работает по фиксу), администратор вручную
+    # проставляет сумму. Она добавляется к зарплате СВЕРХУ и НЕ входит в базу
+    # для расчёта процента администратора (это не реальная выручка от машин).
+    fixed_rates = session.get("fixed_rates", {})
+    for emp, amount in fixed_rates.items():
+        washer_totals.setdefault(emp, 0)
+        washer_salaries[emp] = washer_salaries.get(emp, 0) + amount
+
     def income_amounts(inc):
         """Возвращает {метод: сумма} для дохода — с учётом раздельной оплаты."""
         split = inc.get("payment_split")
@@ -145,6 +154,7 @@ def calculate_summary(session: dict) -> dict:
         "loyalty_cash": loyalty_cash, "loyalty_visa": loyalty_visa, "loyalty_beznal": loyalty_beznal,
         "total_products": total_products,
         "washer_totals": washer_totals, "washer_salaries": washer_salaries,
+        "fixed_rates": fixed_rates,
         "admin_salary": admin_salary,
         "total_expenses": total_expenses, "expenses_str": expenses_str,
         "total_incomes": total_incomes, "incomes_str": incomes_str,
