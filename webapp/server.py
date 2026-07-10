@@ -31,6 +31,8 @@ from sessions import (
     get_session, save_sessions, save_to_archive, reset_session,
     get_branch_workers, get_branch_admin, is_branch_admin, set_branch_admin,
     add_branch_worker, remove_branch_worker,
+    get_branch_admin_names, add_branch_admin_name, remove_branch_admin_name,
+    get_session_admin_name, set_session_admin_name,
     load_archive, load_users, save_users, add_user, remove_user,
     set_worker_schedule, clear_worker_schedule, get_worker_schedule,
     get_schedule_status, is_working_on,
@@ -235,6 +237,16 @@ class BranchAdminIn(BaseModel):
     user_id: int
 
 
+class AdminNameIn(BaseModel):
+    branch: str
+    name: str
+
+
+class AdminOnDutyIn(BaseModel):
+    branch: str
+    name: str  # "" — снять дежурного
+
+
 class CarEditIn(BaseModel):
     employee: Optional[str] = None
     body_type: Optional[str] = None
@@ -391,6 +403,48 @@ def api_set_branch_admin(body: BranchAdminIn, x_init_data: str = Header(default=
     set_branch_admin(body.branch, body.user_id)
     notify_user(body.user_id, f"Вас назначили администратором филиала «{body.branch}» 🛡️")
     return {"ok": True, "admin_id": get_branch_admin(body.branch)}
+
+
+@app.get("/api/admins")
+def api_list_admin_names(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Ростер администраторов филиала (имена) + кто дежурит сегодня."""
+    require_access(x_init_data, x_site_token)
+    return {
+        "admins": get_branch_admin_names(branch),
+        "admin_on_duty": get_session_admin_name(branch),
+    }
+
+
+@app.post("/api/admins")
+def api_add_admin_name(body: AdminNameIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(body.branch, x_init_data, x_site_token)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "Укажите имя")
+    added = add_branch_admin_name(body.branch, name)
+    if not added:
+        raise HTTPException(400, "Такой администратор уже есть")
+    return {"ok": True, "admins": get_branch_admin_names(body.branch)}
+
+
+@app.delete("/api/admins/{branch}/{name}")
+def api_remove_admin_name(branch: str, name: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
+    remove_branch_admin_name(branch, name)
+    # если убрали дежурного администратора — снимаем и дежурство
+    if get_session_admin_name(branch) == name:
+        set_session_admin_name(branch, "")
+    return {"ok": True, "admins": get_branch_admin_names(branch)}
+
+
+@app.post("/api/admin-on-duty")
+def api_set_admin_on_duty(body: AdminOnDutyIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(body.branch, x_init_data, x_site_token)
+    name = body.name.strip()
+    if name and name not in get_branch_admin_names(body.branch):
+        raise HTTPException(404, "Этого администратора нет в списке филиала")
+    set_session_admin_name(body.branch, name)
+    return {"ok": True, "admin_on_duty": name}
 
 
 @app.get("/api/users")
@@ -1006,6 +1060,74 @@ def api_worker_stats(branch: str, name: str, period: str = "today",
         if st["cars"] > 0:
             days_out.append({"date": session.get("date"), **st})
             total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
+
+    days_out.sort(key=lambda d: datetime.strptime(d["date"], "%d.%m.%Y"))
+    return {
+        "name": name, "period": period,
+        "from": start.strftime("%d.%m.%Y"), "to": today.strftime("%d.%m.%Y"),
+        "total_cars": total_cars, "total_salary": total_salary, "total_revenue": total_revenue,
+        "days": days_out,
+    }
+
+
+@app.get("/api/admin-stats")
+def api_admin_stats(branch: str, name: str, period: str = "today",
+                     x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Зарплата администратора (день/неделя/месяц) — по дням, где ИМЕННО этот
+    человек был указан дежурным администратором (session["admin_name"]).
+    Для дней ДО добавления этой функции admin_name в архиве пустой — такие
+    дни в историю не попадут (посчитать задним числом, кто дежурил, нельзя)."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    if name not in get_branch_admin_names(branch):
+        raise HTTPException(404, "Администратор не найден в этом филиале")
+
+    def day_stats(session_dict):
+        if session_dict.get("admin_name") != name:
+            return None
+        s = calculate_summary(session_dict)
+        cars = session_dict.get("cars", [])
+        if not cars and s["admin_salary"] == 0:
+            return None
+        return {"cars": len(cars), "revenue": s["total"], "salary": s["admin_salary"]}
+
+    if period == "today":
+        session = get_session(branch)
+        st = day_stats(session) or {"cars": 0, "revenue": 0, "salary": 0}
+        st["date"] = session.get("date")
+        return {"name": name, "period": "today", "stats": st}
+
+    if period not in ("week", "month"):
+        raise HTTPException(400, "period должен быть today|week|month")
+
+    today = datetime.now()
+    if period == "week":
+        start = (today - timedelta(days=today.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    archive = load_archive()
+    branch_archive = archive.get(branch, {})
+
+    days_out = []
+    total_cars = total_salary = total_revenue = 0
+    for date_str, day in branch_archive.items():
+        try:
+            dt = datetime.strptime(date_str, "%d.%m.%Y")
+        except ValueError:
+            continue
+        if not (start <= dt <= today):
+            continue
+        st = day_stats(day)
+        if not st:
+            continue
+        days_out.append({"date": date_str, **st})
+        total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
+
+    session = get_session(branch)
+    st = day_stats(session)
+    if st:
+        days_out.append({"date": session.get("date"), **st})
+        total_cars += st["cars"]; total_salary += st["salary"]; total_revenue += st["revenue"]
 
     days_out.sort(key=lambda d: datetime.strptime(d["date"], "%d.%m.%Y"))
     return {
