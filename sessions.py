@@ -169,6 +169,8 @@ def get_session(branch: str) -> dict:
     for key in ("loyalty", "expenses", "incomes", "cars", "products"):
         if key not in s:
             s[key] = []
+    if "admin_name" not in s:
+        s["admin_name"] = ""
     return s
 
 
@@ -187,6 +189,7 @@ def _empty_session(branch: str) -> dict:
         "incomes":       [],
         "loyalty":       [],
         "admin_percent": SALARY_ADMIN,
+        "admin_name":    "",
     }
 
 
@@ -209,6 +212,7 @@ def save_to_archive(branch: str, session: dict):
             "incomes":       session.get("incomes", []),
             "loyalty":       session.get("loyalty", []),
             "admin_percent": session.get("admin_percent", SALARY_ADMIN),
+            "admin_name":    session.get("admin_name", ""),
         }
         return archive
 
@@ -222,7 +226,7 @@ _branches_cache: dict[str, dict] | None = None
 
 
 def _default_branches_config() -> dict:
-    return {b: {"admin": 0, "workers": []} for b in BRANCHES}
+    return {b: {"admin": 0, "workers": [], "admin_names": []} for b in BRANCHES}
 
 
 def load_branches_config() -> dict:
@@ -242,6 +246,8 @@ def load_branches_config() -> dict:
             cfg["admin"] = 0; changed = True
         if "workers" not in cfg:
             cfg["workers"] = []; changed = True
+        if "admin_names" not in cfg:
+            cfg["admin_names"] = []; changed = True
     if changed:
         _write_json_locked(BRANCHES_FILE, data)
     _branches_cache = data
@@ -250,7 +256,7 @@ def load_branches_config() -> dict:
 
 def get_branch_config(branch: str) -> dict:
     cfg = _branches_cache or load_branches_config()
-    return cfg.get(branch, {"admin": 0, "workers": []})
+    return cfg.get(branch, {"admin": 0, "workers": [], "admin_names": []})
 
 
 def get_branch_admin(branch: str) -> int:
@@ -349,6 +355,63 @@ def remove_branch_worker(branch: str, name: str) -> bool:
     global _branches_cache
     _branches_cache = _update_json_locked(BRANCHES_FILE, _update)
     return result["removed"]
+
+
+# ── РОСТЕР АДМИНИСТРАТОРОВ ФИЛИАЛА (имена, без привязки к Telegram) ────────
+# В отличие от get_branch_admin/set_branch_admin (один Telegram user_id,
+# управляет правами доступа в БОТЕ), это — список ИМЁН администраторов
+# филиала для сайта: несколько человек может числиться админами одного
+# филиала (например, посменно), а какой из них "дежурит сегодня" —
+# отдельное поле сессии (см. get_session_admin_name/set_session_admin_name).
+
+def get_branch_admin_names(branch: str) -> list[str]:
+    return get_branch_config(branch).get("admin_names", [])
+
+
+def add_branch_admin_name(branch: str, name: str) -> bool:
+    """Возвращает False, если такой админ уже есть."""
+    result = {"added": False}
+
+    def _update(data):
+        data.setdefault(branch, {"admin": 0, "workers": [], "admin_names": []})
+        names = data[branch].setdefault("admin_names", [])
+        if name in names:
+            result["added"] = False
+        else:
+            names.append(name)
+            result["added"] = True
+        return data
+
+    global _branches_cache
+    _branches_cache = _update_json_locked(BRANCHES_FILE, _update)
+    return result["added"]
+
+
+def remove_branch_admin_name(branch: str, name: str) -> bool:
+    result = {"removed": False}
+
+    def _update(data):
+        data.setdefault(branch, {"admin": 0, "workers": [], "admin_names": []})
+        names = data[branch].setdefault("admin_names", [])
+        if name in names:
+            names.remove(name)
+            result["removed"] = True
+        return data
+
+    global _branches_cache
+    _branches_cache = _update_json_locked(BRANCHES_FILE, _update)
+    return result["removed"]
+
+
+def get_session_admin_name(branch: str) -> str:
+    """Кто из ростера администраторов дежурит СЕГОДНЯ (в текущей смене)."""
+    return get_session(branch).get("admin_name", "")
+
+
+def set_session_admin_name(branch: str, name: str):
+    session = get_session(branch)
+    session["admin_name"] = name
+    save_sessions()
 
 
 # ── ГРАФИК РАБОТЫ МОЙЩИКОВ (например 3/1 — 3 дня работает, 1 отдыхает) ──────
