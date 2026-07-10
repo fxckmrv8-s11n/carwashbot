@@ -159,6 +159,7 @@ table.week td:first-child{text-align:left;padding-left:18px;font-weight:600}
           <div class="panel-title">Администраторы</div>
           <div class="panel-sub" id="adminsSub">—</div>
         </div>
+        <button class="btn secondary" id="adminHistBtn" style="height:32px;padding:0 12px;font-size:12px"><i class="ti ti-history"></i>История зарплаты</button>
       </div>
       <div id="adminsList"></div>
       <div id="adminsEmpty" class="empty-note" style="display:none">Администраторов пока нет — добавьте первого ниже</div>
@@ -237,6 +238,22 @@ table.week td:first-child{text-align:left;padding-left:18px;font-weight:600}
   </div>
 </div>
 
+<!-- Модалка заполнения истории администраторов задним числом -->
+<div class="modal-overlay" id="adminHistModal">
+  <div class="modal" style="width:520px">
+    <h3>История дежурств — кто был администратором</h3>
+    <div class="panel-sub" style="margin-bottom:14px">
+      Отметь для каждой прошедшей смены, кто дежурил — тогда «Зарплата» у этого
+      администратора за неделю/месяц начнёт учитывать эти дни.
+    </div>
+    <div style="max-height:360px;overflow-y:auto;border:0.5px solid var(--border);border-radius:10px" id="adminHistList"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="adminHistCloseBtn" style="flex:1;justify-content:center">Отмена</button>
+      <button class="btn primary" id="adminHistSaveBtn" style="flex:1;justify-content:center"><i class="ti ti-check"></i>Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script src="/static/site-common.js"></script>
 <script>
 if (CW.requireAuth()) {
@@ -251,6 +268,7 @@ if (CW.requireAuth()) {
   if (!canManage) {
     document.getElementById("addWorkerRow").style.display = "none";
     document.getElementById("addAdminRow").style.display = "none";
+    document.getElementById("adminHistBtn").style.display = "none";
   }
 
   if (!branch) {
@@ -592,6 +610,60 @@ if (CW.requireAuth()) {
       daysEl.innerHTML = `<div class="empty-note">${e.message}</div>`;
     }
   }
+
+  // ── История дежурств администраторов (заполнение задним числом) ────
+  const adminHistModal = document.getElementById("adminHistModal");
+
+  document.getElementById("adminHistBtn").addEventListener("click", openAdminHistory);
+  document.getElementById("adminHistCloseBtn").addEventListener("click", () => adminHistModal.classList.remove("show"));
+  adminHistModal.addEventListener("click", (e) => { if (e.target === adminHistModal) adminHistModal.classList.remove("show"); });
+
+  async function openAdminHistory() {
+    const list = document.getElementById("adminHistList");
+    list.innerHTML = `<div class="empty-note">Загрузка…</div>`;
+    adminHistModal.classList.add("show");
+    try {
+      const data = await CW.authFetch(`/api/admin-history?branch=${encodeURIComponent(branch)}`);
+      const admins = data.admins || [];
+      if (!data.days.length) {
+        list.innerHTML = `<div class="empty-note">Архив смен для этого филиала пока пуст</div>`;
+        return;
+      }
+      if (!admins.length) {
+        list.innerHTML = `<div class="empty-note">Сначала добавьте администраторов в список выше</div>`;
+        return;
+      }
+      list.innerHTML = data.days.map(d => `
+        <div class="worker-row" style="padding:10px 14px" data-date="${d.date}">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600">${d.date}</div>
+            <div class="worker-meta">${d.cars} машин · выручка ${CW.money(d.revenue)} · зарплата админа ${CW.money(d.admin_salary)}</div>
+          </div>
+          <select class="hist-admin-select" style="width:150px;height:36px">
+            <option value="">— не указан —</option>
+            ${admins.map(a => `<option value="${a}" ${a === d.admin_name ? "selected" : ""}>${a}</option>`).join("")}
+          </select>
+        </div>
+      `).join("");
+    } catch (e) {
+      list.innerHTML = `<div class="empty-note">${e.message}</div>`;
+    }
+  }
+
+  document.getElementById("adminHistSaveBtn").addEventListener("click", async () => {
+    const rows = document.querySelectorAll("#adminHistList [data-date]");
+    const assignments = {};
+    rows.forEach(row => {
+      const date = row.dataset.date;
+      const val = row.querySelector(".hist-admin-select").value;
+      assignments[date] = val;
+    });
+    if (!Object.keys(assignments).length) { adminHistModal.classList.remove("show"); return; }
+    try {
+      await CW.authFetch("/api/admin-history", { method: "POST", body: JSON.stringify({ branch, assignments }) });
+      adminHistModal.classList.remove("show");
+    } catch (e) { showErr(e.message); }
+  });
 
   // ── Неделя ─────────────────────────────────────────────────────────
   async function loadWeek() {
