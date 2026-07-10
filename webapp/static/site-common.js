@@ -10,6 +10,17 @@
 const CW = (() => {
   const API = ""; // сайт и API на одном хосте
 
+  // Подключаем единую тему сайта (Revolut-style) на любую страницу, где
+  // подключён этот скрипт — без необходимости редактировать каждую страницу.
+  (function injectTheme() {
+    if (document.getElementById("cw-theme-link")) return;
+    const link = document.createElement("link");
+    link.id = "cw-theme-link";
+    link.rel = "stylesheet";
+    link.href = "/static/site-theme.css";
+    document.head.appendChild(link);
+  })();
+
   function getToken() { return localStorage.getItem("cw_token") || ""; }
   function getName() { return localStorage.getItem("cw_name") || ""; }
   function getRole() { return localStorage.getItem("cw_role") || ""; }
