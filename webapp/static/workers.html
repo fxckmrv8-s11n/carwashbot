@@ -153,10 +153,25 @@ table.week td:first-child{text-align:left;padding-left:18px;font-weight:600}
       </div>
     </div>
 
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Администраторы</div>
+          <div class="panel-sub" id="adminsSub">—</div>
+        </div>
+      </div>
+      <div id="adminsList"></div>
+      <div id="adminsEmpty" class="empty-note" style="display:none">Администраторов пока нет — добавьте первого ниже</div>
+      <div class="add-row" id="addAdminRow">
+        <input class="f-name" id="aName" type="text" placeholder="Имя администратора">
+        <button id="aAddBtn"><i class="ti ti-plus"></i></button>
+      </div>
+    </div>
+
     <div class="panel" id="adminPanel" style="display:none">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Администратор филиала</div>
+          <div class="panel-title">Доступ в Telegram-боте</div>
           <div class="panel-sub" id="adminSub">—</div>
         </div>
       </div>
@@ -235,6 +250,7 @@ if (CW.requireAuth()) {
   const canManage = role === "админ" || role === "владелец";
   if (!canManage) {
     document.getElementById("addWorkerRow").style.display = "none";
+    document.getElementById("addAdminRow").style.display = "none";
   }
 
   if (!branch) {
@@ -249,9 +265,10 @@ if (CW.requireAuth()) {
 
     load();
     loadWeek();
+    loadAdmins();
   }
 
-  document.getElementById("refreshBtn").addEventListener("click", () => { load(); loadWeek(); });
+  document.getElementById("refreshBtn").addEventListener("click", () => { load(); loadWeek(); loadAdmins(); });
 
   let workersCache = [];
   let scheduleCache = {};
@@ -352,6 +369,77 @@ if (CW.requireAuth()) {
     } catch (e) { showErr(e.message); }
   };
 
+  // ── Администраторы (ростер имён + дежурный на сегодня) ─────────────
+  let adminsCache = [];
+  let adminOnDuty = "";
+
+  async function loadAdmins() {
+    try {
+      const data = await CW.authFetch(`/api/admins?branch=${encodeURIComponent(branch)}`);
+      adminsCache = data.admins || [];
+      adminOnDuty = data.admin_on_duty || "";
+      renderAdmins();
+    } catch (e) { /* не критично для остальной страницы */ }
+  }
+
+  function renderAdmins() {
+    const list = document.getElementById("adminsList");
+    const empty = document.getElementById("adminsEmpty");
+    const sub = document.getElementById("adminsSub");
+    sub.textContent = adminOnDuty ? `Дежурит сегодня: ${adminOnDuty}` : "Дежурный администратор не назначен";
+
+    if (!adminsCache.length) {
+      list.innerHTML = ""; empty.style.display = "block"; return;
+    }
+    empty.style.display = "none";
+    list.innerHTML = adminsCache.map(name => {
+      const isDuty = name === adminOnDuty;
+      const tag = isDuty ? `<span class="tag admin">дежурит сегодня</span>` : "";
+      return `
+        <div class="worker-row">
+          <div class="worker-av" style="background:var(--purple-tint);color:var(--purple)">${CW.initials(name)}</div>
+          <div class="worker-info">
+            <div class="worker-name">${name} ${tag}</div>
+            <div class="worker-meta">${isDuty ? "Получает % администратора за сегодняшнюю смену" : "Не дежурит сегодня"}</div>
+          </div>
+          ${canManage ? `
+          <div class="worker-actions">
+            <div class="icon-btn" title="Зарплата за период" onclick="CW_openAdminSalary('${name.replace(/'/g, "\\'")}')"><i class="ti ti-report-money"></i></div>
+            <div class="icon-btn ${isDuty ? "rate-active" : ""}" title="${isDuty ? "Снять дежурство" : "Назначить дежурным сегодня"}" onclick="CW_toggleDuty('${name.replace(/'/g, "\\'")}', ${isDuty})"><i class="ti ti-shield-check"></i></div>
+            <div class="icon-btn del" title="Удалить администратора" onclick="CW_delAdmin('${name.replace(/'/g, "\\'")}')"><i class="ti ti-trash"></i></div>
+          </div>` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  document.getElementById("aAddBtn").addEventListener("click", async () => {
+    const name = document.getElementById("aName").value.trim();
+    if (!name) { showErr("Укажите имя администратора"); return; }
+    try {
+      await CW.authFetch("/api/admins", { method: "POST", body: JSON.stringify({ branch, name }) });
+      document.getElementById("aName").value = "";
+      await loadAdmins();
+    } catch (e) { showErr(e.message); }
+  });
+
+  window.CW_delAdmin = async (name) => {
+    if (!confirm(`Убрать «${name}» из администраторов филиала?`)) return;
+    try {
+      await CW.authFetch(`/api/admins/${encodeURIComponent(branch)}/${encodeURIComponent(name)}`, { method: "DELETE" });
+      await loadAdmins();
+    } catch (e) { showErr(e.message); }
+  };
+
+  window.CW_toggleDuty = async (name, isDuty) => {
+    try {
+      await CW.authFetch("/api/admin-on-duty", {
+        method: "POST", body: JSON.stringify({ branch, name: isDuty ? "" : name }),
+      });
+      await loadAdmins();
+    } catch (e) { showErr(e.message); }
+  };
+
   // ── Ставка (фикс. зарплата за день, например при 0 машин) ──────────
   window.CW_toggleRate = async (name, currentRate) => {
     const input = prompt(
@@ -421,11 +509,23 @@ if (CW.requireAuth()) {
   const salModal = document.getElementById("salModal");
   let salWorker = null;
   let salPeriod = "today";
+  let salIsAdmin = false;
 
   window.CW_openSalary = (name) => {
     salWorker = name;
+    salIsAdmin = false;
     salPeriod = "today";
     document.getElementById("salWorkerName").textContent = name;
+    document.querySelectorAll(".sal-tab").forEach(t => t.classList.toggle("active", t.dataset.period === "today"));
+    salModal.classList.add("show");
+    loadSalary();
+  };
+
+  window.CW_openAdminSalary = (name) => {
+    salWorker = name;
+    salIsAdmin = true;
+    salPeriod = "today";
+    document.getElementById("salWorkerName").textContent = `${name} (админ)`;
     document.querySelectorAll(".sal-tab").forEach(t => t.classList.toggle("active", t.dataset.period === "today"));
     salModal.classList.add("show");
     loadSalary();
@@ -448,7 +548,8 @@ if (CW.requireAuth()) {
     summaryEl.innerHTML = `<div class="empty-note" style="padding:10px 0">Загрузка…</div>`;
     daysEl.innerHTML = "";
     try {
-      const data = await CW.authFetch(`/api/worker-stats?branch=${encodeURIComponent(branch)}&name=${encodeURIComponent(salWorker)}&period=${salPeriod}`);
+      const endpoint = salIsAdmin ? "/api/admin-stats" : "/api/worker-stats";
+      const data = await CW.authFetch(`${endpoint}?branch=${encodeURIComponent(branch)}&name=${encodeURIComponent(salWorker)}&period=${salPeriod}`);
 
       if (salPeriod === "today") {
         const st = data.stats;
@@ -457,14 +558,20 @@ if (CW.requireAuth()) {
           <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Выручка</div><div style="font-size:18px;font-weight:700">${CW.money(st.revenue)}</div></div>
           <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Зарплата</div><div style="font-size:18px;font-weight:700;color:var(--green)">${CW.money(st.salary)}</div></div>
         `;
-        daysEl.innerHTML = st.car_list.length ? st.car_list.map(c => `
-          <div class="worker-row" style="padding:10px 14px">
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:600">${c.car || "Машина"} · ${c.service || ""}</div>
-              <div class="worker-meta">${c.payment || ""}${c.time ? " · " + c.time : ""}</div>
-            </div>
-            <div style="font-size:13px;font-weight:700">${CW.money(c.price)}</div>
-          </div>`).join("") : `<div class="empty-note">Сегодня машин пока нет</div>`;
+        if (salIsAdmin) {
+          daysEl.innerHTML = st.cars
+            ? `<div class="empty-note">Сегодня дежурит «${salWorker}» · машин за смену: ${st.cars}</div>`
+            : `<div class="empty-note">Сегодня «${salWorker}» не дежурил(а) администратором</div>`;
+        } else {
+          daysEl.innerHTML = st.car_list.length ? st.car_list.map(c => `
+            <div class="worker-row" style="padding:10px 14px">
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:600">${c.car || "Машина"} · ${c.service || ""}</div>
+                <div class="worker-meta">${c.payment || ""}${c.time ? " · " + c.time : ""}</div>
+              </div>
+              <div style="font-size:13px;font-weight:700">${CW.money(c.price)}</div>
+            </div>`).join("") : `<div class="empty-note">Сегодня машин пока нет</div>`;
+        }
       } else {
         summaryEl.innerHTML = `
           <div class="panel" style="margin:0;padding:10px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Машин</div><div style="font-size:18px;font-weight:700">${data.total_cars}</div></div>

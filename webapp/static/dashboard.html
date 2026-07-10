@@ -288,12 +288,13 @@ if (CW.requireAuth()) {
       }).join("");
 
       if (summary.admin_salary) {
+        const adminName = session.admin_name || "Администратор";
         workersHtml += `
           <div class="worker-row">
-            <div class="worker-av" style="background:var(--purple-tint);color:var(--purple)">${CW.initials(CW.getName())}</div>
+            <div class="worker-av" style="background:var(--purple-tint);color:var(--purple)">${CW.initials(adminName)}</div>
             <div class="worker-info">
-              <div class="worker-name">Администратор</div>
-              <div class="worker-meta">% от оборота</div>
+              <div class="worker-name">${adminName}</div>
+              <div class="worker-meta">${session.admin_name ? "Дежурный админ · % от оборота" : "Администратор не назначен · % от оборота"}</div>
             </div>
             <div class="worker-sal">${CW.money(summary.admin_salary)}</div>
           </div>
