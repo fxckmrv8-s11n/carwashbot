@@ -884,6 +884,7 @@ function switchTab(name, editNum){
   if(name==="my-stats") renderMyStats();
   if(name==="settings") renderSettings();
   if(name==="schedule") renderScheduleWeek();
+  if(name==="employees") renderEmployees();
 }
 
 async function ensureMe(){
@@ -900,7 +901,7 @@ async function ensureMe(){
   // "мойщика", независимо от того, числится ли человек сотрудником
   // именно этого филиала (по умолчанию — минимум прав, а не максимум).
   const isPrivileged = !!ME.is_owner || !!ME.is_branch_admin;
-  document.getElementById("tab-my-stats")?.classList.toggle("hidden", !ME.is_worker);
+  document.getElementById("tab-my-stats")?.classList.toggle("hidden", !ME.is_employee);
   ["tab-home","tab-reports","tab-workers","tab-settings"].forEach(id=>{
     document.getElementById(id)?.classList.toggle("hidden", !isPrivileged);
   });
@@ -1162,16 +1163,17 @@ function renderHomeSwipeCard(){
 window.homeSwipeStep=(dir)=>{haptic();HOME_IDX+=dir;renderHomeSwipeCard();};
 
 window.uiWorkerQuick=async(name)=>{
-  const {summary,session}=await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
   const {schedule}=await api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`);
-  const cnt=session.cars.filter(c=>c.employee===name).length;
-  const sal=summary.washer_salaries?.[name]||0;
+  const stats=await api(`/api/employee-stats?branch=${encodeURIComponent(BRANCH)}&name=${encodeURIComponent(name)}&period=today`).catch(()=>null);
+  const cnt=stats?.cars||0;
+  const sal=stats?.total||0;
+  const roleLine=stats?.roles?.length?stats.roles.join(", "):"";
   const sched=schedule?.[name]?.schedule;
   const working=schedule?.[name]?.working!==false;
   const schedLine=sched?`График: ${sched.work}/${sched.rest} · ${working?"работает":"отдыхает 🌙"}`:"График не задан";
   tg.showPopup({
     title:name,
-    message:`${cnt} машин · к выплате ${fmt(sal)}\n${schedLine}`,
+    message:`${roleLine?roleLine+"\n":""}${cnt} машин · к выплате ${fmt(sal)}\n${schedLine}`,
     buttons:[{id:"schedule",type:"default",text:"График работы"},{id:"cancel",type:"cancel"}],
   },(id)=>{if(id==="schedule") uiSetSchedule(name);});
 };
@@ -1626,12 +1628,13 @@ async function renderDayReport(){
 }
 
 /* ─── ВСЕ МАШИНЫ ─────────────────────────────────────────────────────────── */
-let ALL_CARS=[],ALL_CARS_FILTER_EMP="";
+let ALL_CARS=[],ALL_CARS_FILTER_EMP="",ALL_LOYALTY=[];
 async function renderAllCars(){
   const el=document.getElementById("view-all-cars");
   el.innerHTML=`<div class="back-header"><div class="back-btn" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">Все машины</span></div>${skeleton(4)}`;
   const {session}=await api(`/api/session?branch=${encodeURIComponent(BRANCH)}`);
   ALL_CARS=session.cars.slice().reverse();
+  ALL_LOYALTY=session.loyalty||[];
   const workers=[...new Set(ALL_CARS.map(c=>c.employee).filter(Boolean))];
   el.innerHTML=`
     <div class="back-header"><div class="back-btn" onclick="switchTab('home')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">Все машины</span></div>
@@ -1673,11 +1676,12 @@ function renderCarsList(){
   if(!list.length){wrap.innerHTML=`<p class="empty">Ничего не найдено</p>`;return;}
   wrap.innerHTML=list.map(c=>{
     const status=c.status||"done",isDone=status==="done";
+    const discount=ALL_LOYALTY.filter(l=>l.car_num===c.num).reduce((s,l)=>s+(l.discount||0),0);
     return `<div class="swipe-item" data-num="${c.num}">
       <div class="swipe-bg" onclick="delCar(${c.num})"><i class="ti ti-trash"></i></div>
       <div class="swipe-fg">
         <div class="row" data-longpress-num="${c.num}">
-          <div><p class="row-name">${c.time?c.time+" · ":""}${c.car||"Машина"} · ${c.service}</p><p class="row-sub">${c.employee} · ${paymentLabel(c)}</p></div>
+          <div><p class="row-name">${c.time?c.time+" · ":""}${c.car||"Машина"} · ${c.service}</p><p class="row-sub">${c.employee} · ${paymentLabel(c)}${discount?` · скидка ${fmt(discount)}`:""}</p></div>
           <div class="row-right">
             <p class="row-price">${fmt(c.price)}</p>
             <span class="status-badge ${isDone?"status-done":"status-progress"}" onclick="event.stopPropagation();toggleCarStatus(${c.num},'${status}')">${isDone?"Оплачено":"В работе"}</span>
@@ -1714,10 +1718,31 @@ function bindLongPress(el,onLongPress){
 }
 window.openCarQuickMenu=(num)=>{
   const c=ALL_CARS.find(x=>x.num===num);if(!c) return;
+  const discount=ALL_LOYALTY.filter(l=>l.car_num===num).reduce((s,l)=>s+(l.discount||0),0);
   openSheet(`${c.car||"Машина"} · ${fmt(c.price)}`,[
     {icon:"ti-pencil",label:"Изменить",fn:`()=>switchTab('add',${num})`},
+    {icon:"ti-discount-2",label:discount?`Скидка: ${fmt(discount)} (изменить)`:"Добавить скидку",fn:`()=>editCarLoyalty(${num})`},
     {icon:"ti-trash",label:"Удалить",destructive:true,fn:`()=>delCar(${num})`},
   ]);
+};
+window.editCarLoyalty=async(num)=>{
+  const existing=ALL_LOYALTY.map((l,idx)=>({...l,idx})).filter(l=>l.car_num===num);
+  const currentTotal=existing.reduce((s,l)=>s+(l.discount||0),0);
+  const amountStr=window.prompt("Скидка по этой машине (₽), 0 — убрать:",String(currentTotal||""));
+  if(amountStr===null) return;
+  const amount=parseInt(amountStr||"0",10)||0;
+  haptic("medium");
+  try{
+    // Убираем старые записи скидки по этой машине и (если нужно) добавляем новую —
+    // так один car_num всегда соответствует ОДНОЙ актуальной скидке, без дублей.
+    for(const l of existing.slice().reverse()){
+      await api(`/api/loyalty/${encodeURIComponent(BRANCH)}/${l.idx}`,{method:"DELETE"});
+    }
+    if(amount>0){
+      await api("/api/loyalty",{method:"POST",body:JSON.stringify({branch:BRANCH,car_num:num,discount:amount})});
+    }
+    renderAllCars();
+  }catch(e){ tg.showAlert(e.message||"Не удалось сохранить скидку"); }
 };
 
 /* ─── ИСТОРИЯ ────────────────────────────────────────────────────────────── */
@@ -1759,6 +1784,7 @@ async function renderWorkers(){
 
     <div class="btn-wrap" style="padding-top:0">
       <button class="btn secondary btn-sm" onclick="switchTab('schedule')"><i class="ti ti-calendar-week"></i>График работы</button>
+      <button class="btn secondary btn-sm" onclick="switchTab('employees')"><i class="ti ti-users-group"></i>Все сотрудники</button>
     </div>
 
     <div class="home-stat-row">
@@ -1812,7 +1838,7 @@ async function renderMyStats(){
 
   let data;
   try{
-    data = await api(`/api/my-stats?branch=${encodeURIComponent(BRANCH)}&period=${MY_STATS_PERIOD}`);
+    data = await api(`/api/my-employee-stats?branch=${encodeURIComponent(BRANCH)}&period=${MY_STATS_PERIOD}`);
   }catch(e){
     el.innerHTML=`<div class="topbar"><div class="topbar-title">Моя смена</div></div><div style="padding:24px 16px"><p class="empty">Не удалось загрузить данные.<br>Убедись, что тебя добавили сотрудником филиала.</p></div>`;
     return;
@@ -1823,96 +1849,114 @@ async function renderMyStats(){
     `<div class="seg${MY_STATS_PERIOD===k?" active":""}" onclick="uiMyStatsPeriod('${k}')">${label}</div>`
   ).join("")}</div>`;
 
-  if(MY_STATS_PERIOD==="today"){
-    const s=data.stats;
-    const carsHtml=(s.car_list||[]).length
-      ? s.car_list.map(c=>`
-          <div class="worker-card">
-            <div class="wc-top">
-              <div class="wc-info">
-                <div>
-                  <div class="wc-name">${c.car||("Машина #"+c.num)}</div>
-                  <div class="wc-sub">${c.service}${c.time?" · "+c.time:""}</div>
-                </div>
-              </div>
-              <div class="wc-sal">${fmt(c.price)}</div>
-            </div>
-          </div>
-        `).join("")
-      : `<p class="empty">Пока нет помытых машин</p>`;
-    el.innerHTML=`
-      <div class="topbar">
-        <div><div class="topbar-title">Моя смена</div><div class="topbar-sub">${data.name} · ${s.date||""}</div></div>
-      </div>
-      ${tabsHtml}
-      <div class="home-stat-row">
-        <div class="home-stat-box">
-          <span><i class="ti ti-wallet"></i>Заработано сегодня</span>
-          <b>${fmt(s.salary)}</b>
-        </div>
-        <div class="home-stat-box">
-          <span><i class="ti ti-car"></i>Машин помыл</span>
-          <b>${s.cars}</b>
-        </div>
-      </div>
-      <div class="section-label">Твои машины сегодня</div>
-      <div class="card">${carsHtml}</div>
-      <div style="height:20px"></div>
-    `;
-    attachPullToRefresh("view-my-stats",renderMyStats);
-    return;
-  }
+  const roleRowsHtml=Object.entries(data.by_role||{}).map(([role,amount])=>`
+    <div class="worker-card"><div class="wc-top">
+      <div class="wc-info"><div><div class="wc-name">${role[0].toUpperCase()+role.slice(1)}</div></div></div>
+      <div class="wc-sal">${fmt(amount)}</div>
+    </div></div>`).join("");
 
-  const days=data.days||[];
-  const maxSal=Math.max(1,...days.map(d=>d.salary));
-  const wave=days.length?buildWaveSvg(days.map(d=>d.salary),days.length-1,maxSal,"var(--accent)"):"";
+  const dayRowsHtml=(data.days||[]).slice().reverse().map((d,i)=>`
+    <div class="worker-card">
+      <div class="wc-top">
+        <div class="wc-info"><div>
+          <div class="wc-name">${d.date}</div>
+          <div class="wc-sub">${Object.entries(d.roles).map(([r,a])=>`${r}: ${fmt(a)}`).join(" · ")}</div>
+        </div></div>
+        <div class="wc-sal">${fmt(d.total)}</div>
+      </div>
+    </div>`).join("");
 
   el.innerHTML=`
     <div class="topbar">
-      <div><div class="topbar-title">Моя смена</div><div class="topbar-sub">${data.name} · ${data.from} – ${data.to}</div></div>
+      <div><div class="topbar-title">Моя смена</div><div class="topbar-sub">${data.name} · ${data.roles.join(", ")}${MY_STATS_PERIOD!=="today"?` · ${data.from} – ${data.to}`:""}</div></div>
     </div>
     ${tabsHtml}
     <div class="home-stat-row">
       <div class="home-stat-box">
-        <span><i class="ti ti-wallet"></i>Заработано</span>
-        <b>${fmt(data.total_salary)}</b>
+        <span><i class="ti ti-wallet"></i>Общий заработок</span>
+        <b>${fmt(data.total)}</b>
       </div>
       <div class="home-stat-box">
-        <span><i class="ti ti-car"></i>Машин всего</span>
-        <b>${data.total_cars}</b>
+        <span><i class="ti ti-car"></i>Машин</span>
+        <b>${data.cars}</b>
       </div>
     </div>
-    ${wave?`<div class="section-label">Динамика зарплаты по дням</div><div class="card" style="padding:16px">${wave}</div>`:""}
+    ${data.shifts?`<div class="home-stat-row">
+      <div class="home-stat-box"><span><i class="ti ti-calendar"></i>Смен</span><b>${data.shifts}</b></div>
+      <div class="home-stat-box"><span><i class="ti ti-chart-bar"></i>Средняя за смену</span><b>${fmt(data.avg_per_shift)}</b></div>
+    </div>`:""}
+    <div class="section-label">Разбивка по ролям</div>
+    <div class="card">${roleRowsHtml||`<p class="empty">За этот период данных нет</p>`}</div>
     <div class="section-label">По дням</div>
-    <div class="card">
-      ${days.length?days.slice().reverse().map((d,i)=>`
-        <div class="worker-card" onclick="uiToggleMyStatsDay(${i})" style="cursor:pointer">
-          <div class="wc-top">
-            <div class="wc-info">
-              <div>
-                <div class="wc-name">${d.date}</div>
-                <div class="wc-sub">${d.cars} машин</div>
-              </div>
-            </div>
-            <div class="wc-sal">${fmt(d.salary)}</div>
-          </div>
-          <div class="my-stats-day-cars hidden" id="my-stats-day-${i}">
-            ${(d.car_list||[]).map(c=>`
-              <div class="my-stats-car-row">
-                <span>${c.car||("#"+c.num)} · ${c.service}</span>
-                <span>${fmt(c.price)}</span>
-              </div>
-            `).join("")||`<div class="my-stats-car-row"><span class="wc-sub">Нет данных по машинам</span></div>`}
-          </div>
-        </div>
-      `).join(""):`<p class="empty">Нет данных за этот период</p>`}
-    </div>
+    <div class="card">${dayRowsHtml||`<p class="empty">За этот период данных нет</p>`}</div>
     <div style="height:20px"></div>
   `;
   attachPullToRefresh("view-my-stats",renderMyStats);
 }
 window.uiMyStatsPeriod=(p)=>{ MY_STATS_PERIOD=p; haptic(); renderMyStats(); };
 window.uiToggleMyStatsDay=(i)=>{ haptic(); document.getElementById(`my-stats-day-${i}`)?.classList.toggle("hidden"); };
+
+/* ─── ВСЕ СОТРУДНИКИ (сводка по ролям для админа) ────────────────────────── */
+let EMPLOYEES_PERIOD = "today";
+async function renderEmployees(){
+  const el=document.getElementById("view-employees");
+  if(!BRANCH){el.innerHTML=`<div class="px" style="padding-top:20px"><p class="empty">Сначала выбери филиал</p></div>`;return;}
+  el.innerHTML=`<div class="back-header"><div class="back-btn" onclick="switchTab('workers')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">Все сотрудники</span></div>${skeleton(3)}`;
+
+  let data;
+  try{
+    data = await api(`/api/employees-stats?branch=${encodeURIComponent(BRANCH)}&period=${EMPLOYEES_PERIOD}`);
+  }catch(e){
+    el.innerHTML=`<div class="back-header"><div class="back-btn" onclick="switchTab('workers')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">Все сотрудники</span></div><div style="padding:24px 16px"><p class="empty">Не удалось загрузить данные.</p></div>`;
+    return;
+  }
+
+  const periods=[["today","Сегодня"],["week","Неделя"],["month","Месяц"]];
+  const tabsHtml=`<div class="segmented">${periods.map(([k,label])=>
+    `<div class="seg${EMPLOYEES_PERIOD===k?" active":""}" onclick="uiEmployeesPeriod('${k}')">${label}</div>`
+  ).join("")}</div>`;
+
+  const employees=data.employees||[];
+  const cardsHtml=employees.length?employees.map(emp=>{
+    const col=avatarColor(emp.name);
+    const roleRows=Object.entries(emp.by_role||{}).map(([role,amount])=>
+      `<div class="wc-sub" style="display:flex;justify-content:space-between"><span>${role[0].toUpperCase()+role.slice(1)}</span><span>${fmt(amount)}</span></div>`
+    ).join("");
+    return `<div class="worker-card">
+      <div class="wc-top">
+        <div class="wc-info">
+          <div class="wc-av" style="background:${col}22;color:${col}">${initials(emp.name)}</div>
+          <div>
+            <div class="wc-name">${emp.name}</div>
+            <div class="wc-sub">${(emp.roles||[]).join(", ")} · ${emp.shifts} смен · ${emp.cars} машин</div>
+          </div>
+        </div>
+        <div class="wc-sal">${fmt(emp.total)}</div>
+      </div>
+      ${roleRows?`<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border)">${roleRows}</div>`:""}
+    </div>`;
+  }).join(""):`<p class="empty">За этот период данных нет</p>`;
+
+  el.innerHTML=`
+    <div class="back-header"><div class="back-btn" onclick="switchTab('workers')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">Все сотрудники</span></div>
+    <div style="padding:0 0 20px">
+      ${tabsHtml}
+      <div class="home-stat-row">
+        <div class="home-stat-box">
+          <span><i class="ti ti-wallet"></i>Всего выплат</span>
+          <b>${fmt(data.grand_total)}</b>
+        </div>
+        <div class="home-stat-box">
+          <span><i class="ti ti-users"></i>Сотрудников</span>
+          <b>${employees.length}</b>
+        </div>
+      </div>
+      <div class="section-label">${data.from} – ${data.to}</div>
+      <div class="card">${cardsHtml}</div>
+    </div>`;
+  attachPullToRefresh("view-employees",renderEmployees);
+}
+window.uiEmployeesPeriod=(p)=>{ EMPLOYEES_PERIOD=p; haptic(); renderEmployees(); };
 
 /* ─── ГРАФИК НА НЕДЕЛЮ ───────────────────────────────────────────────────── */
 async function renderScheduleWeek(){
@@ -2113,7 +2157,7 @@ window.uiListUsers=async()=>{
 
 /* ─── ДОПОЛНИТЕЛЬНЫЕ ЭКРАНЫ ──────────────────────────────────────────────── */
 document.getElementById("view-home").insertAdjacentHTML("afterend",
-  `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div><div id="view-my-stats" class="hidden"></div>`
+  `<div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div><div id="view-my-stats" class="hidden"></div><div id="view-employees" class="hidden"></div>`
 );
 const _switchTab=switchTab;
 switchTab=function(name,editNum){
