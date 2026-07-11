@@ -108,6 +108,29 @@ def calculate_summary(session: dict) -> dict:
     admin_base    = total_washers + total_products
     admin_salary  = round_salary(admin_base * session.get("admin_percent", SALARY_ADMIN))
 
+    # ── Универсальная разбивка заработка по РОЛЯМ (для агрегации по сотруднику) ──
+    # role_earnings: {employee_name: {role_label: amount}}.
+    # Один и тот же человек может в этот же день фигурировать сразу в нескольких
+    # ролях (например, был мойщиком и в этот же день дежурил администратором) —
+    # оба заработка складываются в один словарь по имени, а не создают "разных"
+    # сотрудников. Чтобы добавить новую роль в будущем (кассир, детейлер и т.д.),
+    # достаточно посчитать её заработок и вызвать _add_role_earning ещё раз —
+    # остальной код (агрегация, отчёты, mini-app) трогать не нужно.
+    role_earnings: dict[str, dict[str, float]] = {}
+
+    def _add_role_earning(name: str, role: str, amount: float):
+        if not name or not amount:
+            return
+        role_earnings.setdefault(name, {})
+        role_earnings[name][role] = role_earnings[name].get(role, 0) + amount
+
+    for emp, sal in washer_salaries.items():
+        _add_role_earning(emp, "мойщик", sal)
+
+    admin_name = session.get("admin_name") or ""
+    if admin_name:
+        _add_role_earning(admin_name, "администратор", admin_salary)
+
     # Фиксированная ставка ("Ставка") — на случай, если мойщик за день не помыл
     # ни одной машины (или просто работает по фиксу), администратор вручную
     # проставляет сумму. Она добавляется к зарплате СВЕРХУ и НЕ входит в базу
@@ -116,6 +139,7 @@ def calculate_summary(session: dict) -> dict:
     for emp, amount in fixed_rates.items():
         washer_totals.setdefault(emp, 0)
         washer_salaries[emp] = washer_salaries.get(emp, 0) + amount
+        _add_role_earning(emp, "мойщик", amount)
 
     def income_amounts(inc):
         """Возвращает {метод: сумма} для дохода — с учётом раздельной оплаты."""
@@ -156,6 +180,7 @@ def calculate_summary(session: dict) -> dict:
         "washer_totals": washer_totals, "washer_salaries": washer_salaries,
         "fixed_rates": fixed_rates,
         "admin_salary": admin_salary,
+        "role_earnings": role_earnings,
         "total_expenses": total_expenses, "expenses_str": expenses_str,
         "total_incomes": total_incomes, "incomes_str": incomes_str,
         "income_cash": income_cash, "income_visa": income_visa, "income_beznal": income_beznal,
