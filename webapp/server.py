@@ -366,6 +366,10 @@ def api_me(branch: str = "", x_init_data: str = Header(default=""), x_site_token
     users = load_users()
     employee_name = users.get(str(uid), "")
     is_worker = bool(employee_name) and branch and employee_name in get_branch_workers(branch)
+    employee_roles = []
+    if employee_name and branch:
+        from employee_stats import get_branch_employee_roles
+        employee_roles = get_branch_employee_roles(branch).get(employee_name, [])
     return {
         "user_id": uid,
         "name": user.get("first_name", ""),
@@ -373,6 +377,10 @@ def api_me(branch: str = "", x_init_data: str = Header(default=""), x_site_token
         "is_branch_admin": is_branch_admin(uid, branch) if branch else False,
         "employee_name": employee_name,
         "is_worker": is_worker,
+        # Сотрудник в ЛЮБОЙ роли (мойщик и/или администратор и т.д.), не только мойщик —
+        # используется, чтобы показывать "Моя смена" и админам-дежурным без роли мойщика.
+        "is_employee": bool(employee_roles),
+        "employee_roles": employee_roles,
     }
 
 
@@ -1000,6 +1008,38 @@ def _my_day_stats(day_data: dict, name: str) -> dict:
     }
 
 
+@app.get("/api/my-employee-stats")
+def api_my_employee_stats(branch: str, period: str = "today",
+                           x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Личная статистика СВОЕГО заработка, объединяющая ВСЕ роли сотрудника
+    (мойщик + администратор + любые будущие роли) — в отличие от /api/my-stats,
+    которая видит только заработок мойщика. Доступ только к своим данным:
+    имя берётся из привязки Telegram-аккаунта (load_users), не из параметров."""
+    from employee_stats import get_branch_employee_roles, employee_period_stats, week_range, month_range
+    name = _employee_name_from_init(x_init_data)
+    roles = get_branch_employee_roles(branch)
+    if not name or name not in roles:
+        raise HTTPException(403, "Вы не привязаны как сотрудник этого филиала")
+
+    today = datetime.now()
+    if period == "today":
+        date_from = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_to = today
+    elif period == "week":
+        date_from, date_to = week_range(today)
+    elif period == "month":
+        date_from, date_to = month_range(today.month, today.year)
+    else:
+        raise HTTPException(400, "period должен быть today|week|month")
+
+    stats = employee_period_stats(branch, name, date_from, date_to)
+    stats["roles"] = roles[name]
+    stats["period"] = period
+    stats["from"] = date_from.strftime("%d.%m.%Y")
+    stats["to"] = date_to.strftime("%d.%m.%Y")
+    return stats
+
+
 @app.get("/api/my-stats")
 def api_my_stats(branch: str, period: str = "today", x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Личная статистика мойщика: сегодня / неделя / месяц.
@@ -1183,6 +1223,67 @@ def api_admin_stats(branch: str, name: str, period: str = "today",
         "from": start.strftime("%d.%m.%Y"), "to": today.strftime("%d.%m.%Y"),
         "total_cars": total_cars, "total_salary": total_salary, "total_revenue": total_revenue,
         "days": days_out,
+    }
+
+
+@app.get("/api/employee-stats")
+def api_employee_stats(branch: str, name: str, period: str = "today",
+                        x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Единая карточка сотрудника: объединяет заработок по ВСЕМ его ролям
+    (мойщик, администратор, и любые будущие роли) под одним именем — вместо
+    того, чтобы показывать 'Иззет-мойщик' и 'Иззет-админ' как разных людей."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    from employee_stats import get_branch_employee_roles, employee_period_stats, week_range, month_range
+    roles = get_branch_employee_roles(branch)
+    if name not in roles:
+        raise HTTPException(404, "Сотрудник не найден в этом филиале")
+
+    today = datetime.now()
+    if period == "today":
+        date_from = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_to = today
+    elif period == "week":
+        date_from, date_to = week_range(today)
+    elif period == "month":
+        date_from, date_to = month_range(today.month, today.year)
+    else:
+        raise HTTPException(400, "period должен быть today|week|month")
+
+    stats = employee_period_stats(branch, name, date_from, date_to)
+    stats["roles"] = roles[name]
+    stats["period"] = period
+    stats["from"] = date_from.strftime("%d.%m.%Y")
+    stats["to"] = date_to.strftime("%d.%m.%Y")
+    return stats
+
+
+@app.get("/api/employees-stats")
+def api_employees_stats(branch: str, period: str = "today",
+                         x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Сводная статистика по ВСЕМ сотрудникам филиала за период — каждый
+    сотрудник встречается ровно один раз, с разбивкой заработка по ролям."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    from employee_stats import all_employees_period_stats, get_branch_employee_roles, week_range, month_range
+    today = datetime.now()
+    if period == "today":
+        date_from = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_to = today
+    elif period == "week":
+        date_from, date_to = week_range(today)
+    elif period == "month":
+        date_from, date_to = month_range(today.month, today.year)
+    else:
+        raise HTTPException(400, "period должен быть today|week|month")
+
+    roles_by_name = get_branch_employee_roles(branch)
+    employees = all_employees_period_stats(branch, date_from, date_to)
+    for emp in employees:
+        emp["roles"] = roles_by_name.get(emp["name"], [])
+    return {
+        "period": period,
+        "from": date_from.strftime("%d.%m.%Y"), "to": date_to.strftime("%d.%m.%Y"),
+        "employees": employees,
+        "grand_total": sum(e["total"] for e in employees),
     }
 
 
