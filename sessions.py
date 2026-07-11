@@ -219,6 +219,17 @@ def save_to_archive(branch: str, session: dict):
     _update_json_locked(ARCHIVE_FILE, _update)
 
 
+def overwrite_archive_day(branch: str, date: str, day: dict):
+    """Полностью заменяет запись конкретного дня в архиве конкретного
+    филиала. Используется для ручного исправления испорченных дней
+    (например, если день случайно переоткрылся и в него дописались
+    машины из другого дня)."""
+    def _update(archive):
+        archive.setdefault(branch, {})[date] = day
+        return archive
+    _update_json_locked(ARCHIVE_FILE, _update)
+
+
 def set_archive_admin_name(branch: str, date: str, name: str) -> bool:
     """Задним числом проставить, кто дежурил администратором в уже
     архивированный день (нужно для истории зарплаты — раньше это поле

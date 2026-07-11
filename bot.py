@@ -11,6 +11,7 @@ from handlers.admin import (
     is_allowed, adduser_command, removeuser_command, listusers_command,
     addworker_command, removeworker_command, setadmin_command, setbranchadmin_command,
     select_branch, get_current_branch, cb_approve_deny, cb_branch, cb_force_newday,
+    fix_100726_command,
 )
 from handlers.cars import (
     edit_car_command, delete_car_command, handle_text_step, parse_car_from_text,
@@ -250,6 +251,7 @@ def main():
         ("removeuser",     removeuser_command),
         ("listusers",      listusers_command),
         ("app",            app_command),
+        ("fix100726",      fix_100726_command),
     ]:
         app.add_handler(CommandHandler(cmd, fn))
 
