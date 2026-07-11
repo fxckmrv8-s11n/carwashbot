@@ -14,8 +14,92 @@ from sessions import (
     load_users, save_users, add_user, remove_user,
     get_branch_admin, is_branch_admin, is_branch_worker, get_role, set_branch_admin,
     get_branch_workers, add_branch_worker, remove_branch_worker,
+    overwrite_archive_day,
 )
 from config import OWNER_ID, BRANCHES
+
+
+async def fix_100726_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """РАЗОВАЯ команда: чинит запись за 10.07.2026 по филиалу «Карла Маркса»,
+    в которую задним числом дописались машины из 11.07 (день случайно
+    переоткрылся). Восстанавливает день по бумажному отчёту 10.07.2026.
+    Можно удалить из кода после того, как один раз выполнена."""
+    if update.effective_user.id != OWNER_ID:
+        await update.message.reply_text("⛔ Нет доступа.")
+        return
+
+    branch = "Карла Маркса"
+    date = "10.07.2026"
+
+    day = {
+        "date": date,
+        "branch": branch,
+        "admin_percent": 0.10,
+        "admin_name": "Салим",
+        "products": [],
+        "incomes": [],
+        "expenses": [
+            {"name": "Пакеты", "amount": 250},
+        ],
+        "loyalty": [
+            {"car_num": 1, "discount": 110},
+        ],
+        "cars": [
+            {"num": 1,  "car": "Audi",                         "employee": "Саркис", "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2000, "payment": "нал"},
+            {"num": 2,  "car": "Captiva",                      "employee": "Саркис", "body_type": "crossover",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 3200, "payment": "нал"},
+            {"num": 3,  "car": "Granta",                       "employee": "Саркис", "body_type": "sedan",
+             "service_keys": ["комплекс", "пластик"],          "service": "Комплексная мойка + Обработка пластика",
+             "price": 2500, "payment": "visa"},
+            {"num": 4,  "car": "V-Class «Премьер Групп»",      "employee": "Саркис", "body_type": "bus",
+             "service_keys": ["комплекс", "твердвоск"],        "service": "Комплексная мойка + Твёрдый воск",
+             "price": 4900, "payment": "безнал"},
+            {"num": 5,  "car": "BMW 009",                      "employee": "Саркис", "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2000, "payment": "нал"},
+            {"num": 6,  "car": "BMW 001",                      "employee": "Саркис", "body_type": "sedan",
+             "service_keys": ["ручная"],                       "service": "Ручная мойка + коврики",
+             "price": 1100, "payment": "visa"},
+
+            {"num": 7,  "car": "Kia «Крым Фарминг»",           "employee": "Роман",  "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2000, "payment": "безнал"},
+            {"num": 8,  "car": "BMW",                          "employee": "Роман",  "body_type": "sedan",
+             "service_keys": ["комплекс", "кожа"],             "service": "Комплексная мойка + Обработка кожи",
+             "price": 2700, "payment": "visa"},
+            {"num": 9,  "car": "Ford",                         "employee": "Роман",  "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2000, "payment": "нал"},
+            {"num": 10, "car": "21012 Lada",                   "employee": "Роман",  "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2000, "payment": "безнал"},
+            {"num": 11, "car": "Lexus «Элеонора»",             "employee": "Роман",  "body_type": "sedan",
+             "service_keys": ["ручная"],                       "service": "Ручная мойка + коврики",
+             "price": 1100, "payment": "нал"},
+
+            {"num": 12, "car": "Omoda",                        "employee": "Артур",  "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2500, "payment": "visa"},
+            {"num": 13, "car": "V-Class «Премьер Групп»",      "employee": "Артур",  "body_type": "bus",
+             "service_keys": ["комплекс", "твердвоск"],        "service": "Комплексная мойка + Твёрдый воск",
+             "price": 4900, "payment": "безнал"},
+            {"num": 14, "car": "Mercedes",                     "employee": "Артур",  "body_type": "sedan",
+             "service_keys": ["комплекс"],                     "service": "Комплексная мойка",
+             "price": 2000, "payment": "нал"},
+        ],
+    }
+
+    overwrite_archive_day(branch, date, day)
+    await update.message.reply_text(
+        "✅ Запись за 10.07.2026 (Карла Маркса) перезаписана по бумажному отчёту.\n"
+        "Проверь через /report или /allreport за 10.07.\n\n"
+        "⚠️ Итоговые зарплаты мойщиков бот теперь считает заново по проценту "
+        "за услугу — могут на пару сотен отличаться от бумажных (там были "
+        "ручные округления), кассу/выручку/расходы это не касается."
+    )
 
 PENDING: dict[int, str] = {}  # user_id -> заявленное имя (в памяти процесса)
 
