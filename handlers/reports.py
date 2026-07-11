@@ -65,38 +65,22 @@ async def week_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _send_week_report(msg, branch: str):
-    archive       = load_archive()
-    branch_archive = archive.get(branch, {})
-    today      = datetime.now()
-    week_start = today - timedelta(days=today.weekday())
-    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    from employee_stats import all_employees_period_stats, week_range
+    week_start, today = week_range()
+    employees = all_employees_period_stats(branch, week_start, today)
 
-    salaries = {}
-    for date_str, day in branch_archive.items():
-        try: day_dt = datetime.strptime(date_str, "%d.%m.%Y")
-        except ValueError: continue
-        if not (week_start <= day_dt <= today): continue
-        s = calculate_summary(day)
-        for emp, sal in s["washer_salaries"].items():
-            salaries.setdefault(emp, {})[date_str] = sal
-
-    session = _sessions.get(branch, {})
-    if session.get("cars"):
-        s  = calculate_summary(session)
-        dt = session.get("date", today.strftime("%d.%m.%Y"))
-        for emp, sal in s["washer_salaries"].items():
-            salaries.setdefault(emp, {})[dt] = sal
-
-    if not salaries:
+    if not employees:
         await msg.reply_text("📋 Нет данных за эту неделю."); return
 
     lines = [f"📊 *Зарплата {week_start.strftime('%d.%m')}–{today.strftime('%d.%m.%Y')}* | 📍 {branch}\n"]
-    for emp in sorted(salaries):
-        days  = salaries[emp]
-        total = sum(days.values())
-        lines.append(f"👷 *{emp}:*")
-        for d in sorted(days): lines.append(f"  {d}: {days[d]}₽")
-        lines.append(f"  *Итого: {total}₽*\n")
+    for emp in employees:
+        lines.append(f"👷 *{emp['name']}:*")
+        for d in emp["days"]:
+            role_str = ", ".join(f"{r}: {a}₽" for r, a in d["roles"].items())
+            lines.append(f"  {d['date']}: {role_str}")
+        for role, amount in emp["by_role"].items():
+            lines.append(f"  {role.capitalize()}: {amount}₽")
+        lines.append(f"  *Итого: {emp['total']}₽*\n")
     await msg.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
@@ -116,28 +100,22 @@ async def month_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     month_num = MONTHS_RU.get(args[0].lower())
     if not month_num:
         await update.message.reply_text(f"❌ Не понял месяц '{args[0]}'."); return
-    year           = int(args[1]) if len(args) > 1 else datetime.now().year
-    archive        = load_archive()
-    branch_archive = archive.get(branch, {})
-    week_sal       = {}
-    for date_str, day in branch_archive.items():
-        try: dt = datetime.strptime(date_str, "%d.%m.%Y")
-        except ValueError: continue
-        if dt.month != month_num or dt.year != year: continue
-        wk = (dt.day - 1) // 7 + 1
-        s  = calculate_summary(day)
-        for emp, sal in s["washer_salaries"].items():
-            week_sal.setdefault(emp, {})
-            week_sal[emp][wk] = week_sal[emp].get(wk, 0) + sal
-    if not week_sal:
+    year = int(args[1]) if len(args) > 1 else datetime.now().year
+    from employee_stats import all_employees_period_stats, month_range, employee_month_stats_by_week
+    month_start, month_end = month_range(month_num, year)
+    employees = all_employees_period_stats(branch, month_start, month_end)
+    if not employees:
         await update.message.reply_text(f"📋 Нет данных за {args[0]} {year}."); return
     lines = [f"📊 *Зарплата за {args[0].capitalize()} {year}* | 📍 {branch}\n"]
-    for emp in sorted(week_sal):
-        weeks = week_sal[emp]
-        total = sum(weeks.values())
-        lines.append(f"👷 *{emp}:*")
-        for wk in sorted(weeks): lines.append(f"  Неделя {wk}: {weeks[wk]}₽")
-        lines.append(f"  *Итого: {total}₽*\n")
+    for emp in employees:
+        lines.append(f"👷 *{emp['name']}:*")
+        by_week = employee_month_stats_by_week(branch, emp["name"], month_num, year)
+        for wk, data in by_week.items():
+            lines.append(f"  Неделя {wk}: {data['total']}₽")
+        for role, amount in emp["by_role"].items():
+            lines.append(f"  {role.capitalize()}: {amount}₽")
+        lines.append(f"  Смен: {emp['shifts']} | Машин: {emp['cars']}")
+        lines.append(f"  *Итого: {emp['total']}₽*\n")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
