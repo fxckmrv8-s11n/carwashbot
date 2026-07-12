@@ -219,6 +219,20 @@ if (CW.requireAuth()) {
   const errEl = document.getElementById("errBanner");
   function showErr(msg) { errEl.textContent = msg; errEl.style.display = "block"; }
 
+  const role = CW.getRole();
+  const isAdminRole = role === "админ" || role === "владелец";
+
+  async function updateDayPanels() {
+    if (!isAdminRole || !branch) return;
+    try {
+      const st = await CW.authFetch(`/api/dayopen?branch=${encodeURIComponent(branch)}`);
+      document.getElementById("openPanel").style.display = st.open ? "none" : "flex";
+      document.getElementById("closePanel").style.display = st.open ? "flex" : "none";
+    } catch (e) {
+      // если что-то пошло не так — не блокируем страницу, просто оставляем как было
+    }
+  }
+
   if (!branch) {
     showErr("Филиал не выбран. Выберите филиал в сайдбаре.");
   } else {
@@ -229,19 +243,6 @@ if (CW.requireAuth()) {
       CW.downloadFile(`/api/reports/pdf?branch=${encodeURIComponent(branch)}`, `Касса_${branch}.pdf`).catch(e => (typeof showErr === "function" ? showErr(e.message) : alert(e.message)));
     };
 
-    const role = CW.getRole();
-    const isAdminRole = role === "админ" || role === "владелец";
-
-    async function updateDayPanels() {
-      if (!isAdminRole) return;
-      try {
-        const st = await CW.authFetch(`/api/dayopen?branch=${encodeURIComponent(branch)}`);
-        document.getElementById("openPanel").style.display = st.open ? "none" : "flex";
-        document.getElementById("closePanel").style.display = st.open ? "flex" : "none";
-      } catch (e) {
-        // если что-то пошло не так — не блокируем страницу, просто оставляем как было
-      }
-    }
     updateDayPanels();
 
     let cfg = null;
