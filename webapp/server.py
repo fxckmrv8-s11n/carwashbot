@@ -36,6 +36,7 @@ from sessions import (
     load_archive, load_users, save_users, add_user, remove_user,
     set_worker_schedule, clear_worker_schedule, get_worker_schedule,
     get_schedule_status, is_working_on,
+    is_session_open, open_session, close_session,
 )
 from calculator import calculate_summary
 from pdf_generator import generate_pdf
@@ -366,10 +367,6 @@ def api_me(branch: str = "", x_init_data: str = Header(default=""), x_site_token
     users = load_users()
     employee_name = users.get(str(uid), "")
     is_worker = bool(employee_name) and branch and employee_name in get_branch_workers(branch)
-    employee_roles = []
-    if employee_name and branch:
-        from employee_stats import get_branch_employee_roles
-        employee_roles = get_branch_employee_roles(branch).get(employee_name, [])
     return {
         "user_id": uid,
         "name": user.get("first_name", ""),
@@ -377,10 +374,6 @@ def api_me(branch: str = "", x_init_data: str = Header(default=""), x_site_token
         "is_branch_admin": is_branch_admin(uid, branch) if branch else False,
         "employee_name": employee_name,
         "is_worker": is_worker,
-        # Сотрудник в ЛЮБОЙ роли (мойщик и/или администратор и т.д.), не только мойщик —
-        # используется, чтобы показывать "Моя смена" и админам-дежурным без роли мойщика.
-        "is_employee": bool(employee_roles),
-        "employee_roles": employee_roles,
     }
 
 
@@ -533,9 +526,17 @@ def api_session(branch: str, x_init_data: str = Header(default=""), x_site_token
     return {"session": session, "summary": summary}
 
 
+def require_day_open(branch: str):
+    """Блокирует добавление записей, если смена по филиалу закрыта —
+    чтобы данные не улетали 'во вчерашний день'."""
+    if not is_session_open(branch):
+        raise HTTPException(409, f"Смена по филиалу «{branch}» закрыта. Сначала нажмите «Открыть смену».")
+
+
 @app.post("/api/car")
 def api_add_car(body: CarIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
+    require_day_open(body.branch)
     session = get_session(body.branch)
     body_type = body.body_type
 
@@ -705,6 +706,7 @@ def api_delete_car(branch: str, num: int, x_init_data: str = Header(default=""),
 @app.post("/api/loyalty")
 def api_add_loyalty(body: LoyaltyIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
+    require_day_open(body.branch)
     session = get_session(body.branch)
     session.setdefault("loyalty", []).append({"car_num": body.car_num, "discount": body.discount})
     save_sessions()
@@ -728,6 +730,7 @@ def api_delete_loyalty(branch: str, idx: int, x_init_data: str = Header(default=
 @app.post("/api/expense")
 def api_add_expense(body: ExpenseIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
+    require_day_open(body.branch)
     session = get_session(body.branch)
     session.setdefault("expenses", []).append({"name": body.name, "amount": body.amount})
     save_sessions()
@@ -753,6 +756,7 @@ def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default=
 @app.post("/api/income")
 def api_add_income(body: IncomeIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
+    require_day_open(body.branch)
     session = get_session(body.branch)
     entry = {"name": body.name, "amount": body.amount}
     if body.payment_split:
@@ -823,6 +827,7 @@ def api_add_product(body: ProductIn, x_init_data: str = Header(default=""), x_si
     товаров учитывается в базе для расчёта зарплаты администратора
     (мойка + товары), см. calculator.py."""
     require_access(x_init_data, x_site_token)
+    require_day_open(body.branch)
     product = PRODUCTS.get(body.key)
     if not product:
         raise HTTPException(404, "Товар не найден в каталоге")
@@ -906,6 +911,60 @@ def api_newday(branch: str, body: Optional[NewDayIn] = None,
 
     reset_session(branch)
     return {"ok": True, "discrepancy": discrepancy}
+
+
+@app.post("/api/closeday")
+def api_closeday(branch: str, body: Optional[NewDayIn] = None,
+                  x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Закрыть день: архивирует накопленные данные и блокирует добавление
+    записей до /api/openday. В отличие от /api/newday НЕ открывает сразу
+    новый день — этим и чинится баг с 'вчерашней датой по утрам'."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    body = body or NewDayIn()
+    session = get_session(branch)
+    if not is_session_open(branch):
+        return {"ok": True, "already_closed": True}
+    had_data = session.get("cars") or session.get("products")
+
+    discrepancy = None
+    if had_data and body.actual_cash is not None:
+        summary = calculate_summary(session)
+        expected_cash = summary["cash"]
+        discrepancy = body.actual_cash - expected_cash
+        session["actual_cash"] = body.actual_cash
+        session["cash_discrepancy"] = discrepancy
+
+    close_session(branch)
+
+    actor_id, actor_name = current_user_id(x_init_data), current_user_name(x_init_data)
+    if discrepancy is not None and discrepancy != 0:
+        sign = "недостача" if discrepancy < 0 else "излишек"
+        log_action(branch, "closeday", actor_id, actor_name,
+                   f"Смена закрыта · касса не сошлась: {sign} {abs(discrepancy)}₽ "
+                   f"(в системе {expected_cash}₽, по факту {body.actual_cash}₽)")
+    else:
+        log_action(branch, "closeday", actor_id, actor_name, "Смена закрыта")
+
+    return {"ok": True, "discrepancy": discrepancy}
+
+
+@app.post("/api/openday")
+def api_openday(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Открыть новый день утром: чистая касса, дата = сегодня."""
+    require_branch_admin(branch, x_init_data, x_site_token)
+    if is_session_open(branch):
+        return {"ok": True, "already_open": True}
+    open_session(branch)
+    actor_id, actor_name = current_user_id(x_init_data), current_user_name(x_init_data)
+    log_action(branch, "openday", actor_id, actor_name, "Смена открыта")
+    return {"ok": True}
+
+
+@app.get("/api/dayopen")
+def api_dayopen(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Открыта ли сейчас смена по филиалу — для UI (показать 'Открыть' или 'Закрыть')."""
+    require_access(x_init_data, x_site_token)
+    return {"open": is_session_open(branch)}
 
 
 @app.get("/api/reports/today")
@@ -1006,38 +1065,6 @@ def _my_day_stats(day_data: dict, name: str) -> dict:
             for c in my_cars
         ],
     }
-
-
-@app.get("/api/my-employee-stats")
-def api_my_employee_stats(branch: str, period: str = "today",
-                           x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    """Личная статистика СВОЕГО заработка, объединяющая ВСЕ роли сотрудника
-    (мойщик + администратор + любые будущие роли) — в отличие от /api/my-stats,
-    которая видит только заработок мойщика. Доступ только к своим данным:
-    имя берётся из привязки Telegram-аккаунта (load_users), не из параметров."""
-    from employee_stats import get_branch_employee_roles, employee_period_stats, week_range, month_range
-    name = _employee_name_from_init(x_init_data)
-    roles = get_branch_employee_roles(branch)
-    if not name or name not in roles:
-        raise HTTPException(403, "Вы не привязаны как сотрудник этого филиала")
-
-    today = datetime.now()
-    if period == "today":
-        date_from = today.replace(hour=0, minute=0, second=0, microsecond=0)
-        date_to = today
-    elif period == "week":
-        date_from, date_to = week_range(today)
-    elif period == "month":
-        date_from, date_to = month_range(today.month, today.year)
-    else:
-        raise HTTPException(400, "period должен быть today|week|month")
-
-    stats = employee_period_stats(branch, name, date_from, date_to)
-    stats["roles"] = roles[name]
-    stats["period"] = period
-    stats["from"] = date_from.strftime("%d.%m.%Y")
-    stats["to"] = date_to.strftime("%d.%m.%Y")
-    return stats
 
 
 @app.get("/api/my-stats")
@@ -1223,67 +1250,6 @@ def api_admin_stats(branch: str, name: str, period: str = "today",
         "from": start.strftime("%d.%m.%Y"), "to": today.strftime("%d.%m.%Y"),
         "total_cars": total_cars, "total_salary": total_salary, "total_revenue": total_revenue,
         "days": days_out,
-    }
-
-
-@app.get("/api/employee-stats")
-def api_employee_stats(branch: str, name: str, period: str = "today",
-                        x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    """Единая карточка сотрудника: объединяет заработок по ВСЕМ его ролям
-    (мойщик, администратор, и любые будущие роли) под одним именем — вместо
-    того, чтобы показывать 'Иззет-мойщик' и 'Иззет-админ' как разных людей."""
-    require_branch_admin(branch, x_init_data, x_site_token)
-    from employee_stats import get_branch_employee_roles, employee_period_stats, week_range, month_range
-    roles = get_branch_employee_roles(branch)
-    if name not in roles:
-        raise HTTPException(404, "Сотрудник не найден в этом филиале")
-
-    today = datetime.now()
-    if period == "today":
-        date_from = today.replace(hour=0, minute=0, second=0, microsecond=0)
-        date_to = today
-    elif period == "week":
-        date_from, date_to = week_range(today)
-    elif period == "month":
-        date_from, date_to = month_range(today.month, today.year)
-    else:
-        raise HTTPException(400, "period должен быть today|week|month")
-
-    stats = employee_period_stats(branch, name, date_from, date_to)
-    stats["roles"] = roles[name]
-    stats["period"] = period
-    stats["from"] = date_from.strftime("%d.%m.%Y")
-    stats["to"] = date_to.strftime("%d.%m.%Y")
-    return stats
-
-
-@app.get("/api/employees-stats")
-def api_employees_stats(branch: str, period: str = "today",
-                         x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    """Сводная статистика по ВСЕМ сотрудникам филиала за период — каждый
-    сотрудник встречается ровно один раз, с разбивкой заработка по ролям."""
-    require_branch_admin(branch, x_init_data, x_site_token)
-    from employee_stats import all_employees_period_stats, get_branch_employee_roles, week_range, month_range
-    today = datetime.now()
-    if period == "today":
-        date_from = today.replace(hour=0, minute=0, second=0, microsecond=0)
-        date_to = today
-    elif period == "week":
-        date_from, date_to = week_range(today)
-    elif period == "month":
-        date_from, date_to = month_range(today.month, today.year)
-    else:
-        raise HTTPException(400, "period должен быть today|week|month")
-
-    roles_by_name = get_branch_employee_roles(branch)
-    employees = all_employees_period_stats(branch, date_from, date_to)
-    for emp in employees:
-        emp["roles"] = roles_by_name.get(emp["name"], [])
-    return {
-        "period": period,
-        "from": date_from.strftime("%d.%m.%Y"), "to": date_to.strftime("%d.%m.%Y"),
-        "employees": employees,
-        "grand_total": sum(e["total"] for e in employees),
     }
 
 
