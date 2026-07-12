@@ -190,7 +190,39 @@ def _empty_session(branch: str) -> dict:
         "loyalty":       [],
         "admin_percent": SALARY_ADMIN,
         "admin_name":    "",
+        "is_open":       True,
     }
+
+
+def is_session_open(branch: str) -> bool:
+    """Открыта ли смена по филиалу (нажали /openday и ещё не закрывали).
+    Для старых сессий без ключа is_open считаем смену открытой (обратная
+    совместимость)."""
+    if branch not in sessions:
+        return True
+    return sessions[branch].get("is_open", True)
+
+
+def open_session(branch: str):
+    """Открыть новый рабочий день: чистая смена, дата — сегодня.
+    Использовать утром. Если предыдущий день не был закрыт (не пуст и
+    is_open=True) — данные предыдущего дня НЕ архивируются автоматически
+    (используй /closeday сначала), чтобы не потерять их молча."""
+    reset_session(branch)  # ставит is_open=True и дату = сегодня
+
+
+def close_session(branch: str):
+    """Закрыть текущий рабочий день: архивирует накопленные данные (если
+    есть что архивировать) и помечает смену как закрытую. Пока смена не
+    будет открыта заново через /openday, добавлять машины/расходы нельзя —
+    это и чинит баг с 'вчерашней датой в PDF по утрам'."""
+    session = get_session(branch)
+    has_data = any(session.get(k) for k in ("cars", "products", "expenses", "incomes", "loyalty"))
+    if has_data:
+        save_to_archive(branch, session)
+    sessions[branch] = _empty_session(branch)
+    sessions[branch]["is_open"] = False
+    save_sessions()
 
 
 # ── АРХИВ ────────────────────────────────────────────────────────────────────
