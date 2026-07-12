@@ -191,10 +191,18 @@ body{
       </div>
     </div>
 
+    <div class="close-panel" id="openPanel" style="display:none">
+      <div>
+        <div class="cp-title">Открыть смену</div>
+        <div class="cp-sub">Начнёт новый день (дата = сегодня) по филиалу «<span id="openBranchName"></span>». Пока не нажмёшь — добавлять машины нельзя.</div>
+      </div>
+      <button class="btn" id="openBtn"><i class="ti ti-lock-open"></i>Открыть смену</button>
+    </div>
+
     <div class="close-panel" id="closePanel" style="display:none">
       <div>
         <div class="cp-title">Закрыть смену</div>
-        <div class="cp-sub">Сохранит день в архив и обнулит кассу филиала «<span id="closeBranchName"></span>»</div>
+        <div class="cp-sub">Сохранит день в архив филиала «<span id="closeBranchName"></span>». Утром нужно будет нажать «Открыть смену».</div>
       </div>
       <button class="btn danger" id="closeBtn"><i class="ti ti-lock"></i>Закрыть смену</button>
     </div>
@@ -216,14 +224,25 @@ if (CW.requireAuth()) {
   } else {
     document.getElementById("pageSub").textContent = `${branch} · ${CW.todayLabel()}`;
     document.getElementById("closeBranchName").textContent = branch;
+    document.getElementById("openBranchName").textContent = branch;
     document.getElementById("exportBtn").onclick = () => {
       CW.downloadFile(`/api/reports/pdf?branch=${encodeURIComponent(branch)}`, `Касса_${branch}.pdf`).catch(e => (typeof showErr === "function" ? showErr(e.message) : alert(e.message)));
     };
 
     const role = CW.getRole();
-    if (role === "админ" || role === "владелец") {
-      document.getElementById("closePanel").style.display = "flex";
+    const isAdminRole = role === "админ" || role === "владелец";
+
+    async function updateDayPanels() {
+      if (!isAdminRole) return;
+      try {
+        const st = await CW.authFetch(`/api/dayopen?branch=${encodeURIComponent(branch)}`);
+        document.getElementById("openPanel").style.display = st.open ? "none" : "flex";
+        document.getElementById("closePanel").style.display = st.open ? "flex" : "none";
+      } catch (e) {
+        // если что-то пошло не так — не блокируем страницу, просто оставляем как было
+      }
     }
+    updateDayPanels();
 
     let cfg = null;
     CW.authFetch("/api/config").then(c => {
@@ -432,6 +451,24 @@ if (CW.requireAuth()) {
     } catch (e) { showErr(e.message); }
   };
 
+  const openBtn = document.getElementById("openBtn");
+  if (openBtn) {
+    openBtn.addEventListener("click", async () => {
+      if (!confirm(`Открыть смену филиала «${branch}» на сегодня?`)) return;
+      openBtn.disabled = true;
+      try {
+        await CW.authFetch(`/api/openday?branch=${encodeURIComponent(branch)}`, { method: "POST" });
+        await load();
+        await updateDayPanels();
+        alert("Смена открыта ✅");
+      } catch (e) {
+        showErr(e.message);
+      } finally {
+        openBtn.disabled = false;
+      }
+    });
+  }
+
   const closeBtn = document.getElementById("closeBtn");
   if (closeBtn) {
     closeBtn.addEventListener("click", async () => {
@@ -442,7 +479,7 @@ if (CW.requireAuth()) {
       );
       if (input === null) return; // отмена
 
-      if (!confirm(`Закрыть смену филиала «${branch}»?\n\nДень будет сохранён в архив, касса обнулится. Отменить это действие нельзя.`)) return;
+      if (!confirm(`Закрыть смену филиала «${branch}»?\n\nДень будет сохранён в архив. Отменить это действие нельзя.`)) return;
       closeBtn.disabled = true;
       try {
         const body = {};
@@ -450,15 +487,16 @@ if (CW.requireAuth()) {
           const actual = parseInt(input.replace(/[^\d-]/g, ""), 10);
           if (!isNaN(actual)) body.actual_cash = actual;
         }
-        const res = await CW.authFetch(`/api/newday?branch=${encodeURIComponent(branch)}`, {
+        const res = await CW.authFetch(`/api/closeday?branch=${encodeURIComponent(branch)}`, {
           method: "POST", body: JSON.stringify(body),
         });
         await load();
+        await updateDayPanels();
         if (res.discrepancy != null && res.discrepancy !== 0) {
           const sign = res.discrepancy < 0 ? "Недостача" : "Излишек";
           alert(`Смена закрыта.\n\n⚠️ Касса не сошлась!\n${sign}: ${CW.money(Math.abs(res.discrepancy))}\n(записано в историю изменений)`);
         } else {
-          alert("Смена закрыта и сохранена в архив. Касса сошлась ✅");
+          alert("Смена закрыта и сохранена в архив. Утром — «Открыть смену».");
         }
       } catch (e) {
         showErr(e.message);
