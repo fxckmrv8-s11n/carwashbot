@@ -190,39 +190,20 @@ def _empty_session(branch: str) -> dict:
         "loyalty":       [],
         "admin_percent": SALARY_ADMIN,
         "admin_name":    "",
-        "is_open":       True,
     }
 
 
-def is_session_open(branch: str) -> bool:
-    """Открыта ли смена по филиалу (нажали /openday и ещё не закрывали).
-    Для старых сессий без ключа is_open считаем смену открытой (обратная
-    совместимость)."""
-    if branch not in sessions:
-        return True
-    return sessions[branch].get("is_open", True)
-
-
-def open_session(branch: str):
-    """Открыть новый рабочий день: чистая смена, дата — сегодня.
-    Использовать утром. Если предыдущий день не был закрыт (не пуст и
-    is_open=True) — данные предыдущего дня НЕ архивируются автоматически
-    (используй /closeday сначала), чтобы не потерять их молча."""
-    reset_session(branch)  # ставит is_open=True и дату = сегодня
-
-
-def close_session(branch: str):
-    """Закрыть текущий рабочий день: архивирует накопленные данные (если
-    есть что архивировать) и помечает смену как закрытую. Пока смена не
-    будет открыта заново через /openday, добавлять машины/расходы нельзя —
-    это и чинит баг с 'вчерашней датой в PDF по утрам'."""
-    session = get_session(branch)
-    has_data = any(session.get(k) for k in ("cars", "products", "expenses", "incomes", "loyalty"))
-    if has_data:
-        save_to_archive(branch, session)
-    sessions[branch] = _empty_session(branch)
-    sessions[branch]["is_open"] = False
-    save_sessions()
+def session_has_data(session: dict) -> bool:
+    """Есть ли в смене хоть что-то, что стоит сохранить/показать — не только
+    машины. Пустой отчёт (ни одной машины) всё равно "не пустой", если
+    сотруднику или администратору проставлена фиксированная ставка — иначе
+    эта ставка молча терялась бы при старте нового дня или не давала бы
+    закрыть/посмотреть отчёт."""
+    return bool(
+        session.get("cars") or session.get("products") or
+        session.get("expenses") or session.get("incomes") or
+        session.get("fixed_rates") or session.get("admin_fixed_rate")
+    )
 
 
 # ── АРХИВ ────────────────────────────────────────────────────────────────────
@@ -245,6 +226,8 @@ def save_to_archive(branch: str, session: dict):
             "loyalty":       session.get("loyalty", []),
             "admin_percent": session.get("admin_percent", SALARY_ADMIN),
             "admin_name":    session.get("admin_name", ""),
+            "fixed_rates":       session.get("fixed_rates", {}),
+            "admin_fixed_rate":  session.get("admin_fixed_rate", 0),
         }
         return archive
 
@@ -274,6 +257,42 @@ def set_archive_admin_name(branch: str, date: str, name: str) -> bool:
             result["ok"] = False
             return archive
         day["admin_name"] = name
+        result["ok"] = True
+        return archive
+
+    _update_json_locked(ARCHIVE_FILE, _update)
+    return result["ok"]
+
+
+def patch_fixed_rates(day: dict, rate_updates: dict, admin_amount: int | None = None) -> None:
+    """Задним числом добавляет/меняет фикс-ставки (мойщика и/или админа)
+    прямо в словаре дня — общая логика для архивного дня и текущей смены.
+    amount <= 0 у конкретного сотрудника удаляет его ставку."""
+    day.setdefault("fixed_rates", {})
+    for name, amount in rate_updates.items():
+        if amount <= 0:
+            day["fixed_rates"].pop(name, None)
+        else:
+            day["fixed_rates"][name] = amount
+    if admin_amount is not None:
+        if admin_amount <= 0:
+            day.pop("admin_fixed_rate", None)
+        else:
+            day["admin_fixed_rate"] = admin_amount
+
+
+def patch_archive_fixed_rates(branch: str, date: str, rate_updates: dict, admin_amount: int | None = None) -> bool:
+    """Задним числом проставить фикс-ставки в УЖЕ АРХИВИРОВАННЫЙ день
+    (например, если день закрыли, а про ставку забыли). Возвращает False,
+    если такого дня нет в архиве."""
+    result = {"ok": False}
+
+    def _update(archive):
+        day = archive.get(branch, {}).get(date)
+        if day is None:
+            result["ok"] = False
+            return archive
+        patch_fixed_rates(day, rate_updates, admin_amount)
         result["ok"] = True
         return archive
 

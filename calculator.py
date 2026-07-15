@@ -108,6 +108,15 @@ def calculate_summary(session: dict) -> dict:
     admin_base    = total_washers + total_products
     admin_salary  = round_salary(admin_base * session.get("admin_percent", SALARY_ADMIN))
 
+    # Фиксированная ставка администратора ("Ставка") — на случай пустого
+    # отчёта: за смену не было ни одной машины (или касса не велась), но
+    # администратор дежурил и должен получить фикс (по умолчанию 1000₽).
+    # Работает так же, как фикс-ставка мойщика: добавляется СВЕРХУ, отдельно
+    # от процента с выручки.
+    admin_fixed_rate = session.get("admin_fixed_rate", 0)
+    if admin_fixed_rate:
+        admin_salary += admin_fixed_rate
+
     # ── Универсальная разбивка заработка по РОЛЯМ (для агрегации по сотруднику) ──
     # role_earnings: {employee_name: {role_label: amount}}.
     # Один и тот же человек может в этот же день фигурировать сразу в нескольких
@@ -180,6 +189,7 @@ def calculate_summary(session: dict) -> dict:
         "washer_totals": washer_totals, "washer_salaries": washer_salaries,
         "fixed_rates": fixed_rates,
         "admin_salary": admin_salary,
+        "admin_fixed_rate": admin_fixed_rate,
         "role_earnings": role_earnings,
         "total_expenses": total_expenses, "expenses_str": expenses_str,
         "total_incomes": total_incomes, "incomes_str": incomes_str,

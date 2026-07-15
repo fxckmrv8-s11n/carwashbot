@@ -66,7 +66,8 @@ def _iter_branch_days(branch: str, date_from: datetime | None = None, date_to: d
         yield date_str, day
 
     session = _live_sessions.get(branch, {})
-    if session.get("cars") or session.get("products"):
+    from sessions import session_has_data
+    if session_has_data(session):
         date_str = session.get("date") or datetime.now().strftime("%d.%m.%Y")
         dt = _parse_date(date_str) or datetime.now()
         if (not date_from or dt >= date_from) and (not date_to or dt <= date_to):
