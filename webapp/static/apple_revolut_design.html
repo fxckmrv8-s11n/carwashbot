@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarWash Cloud — Premium Dashboard</title>
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <style>
+    /* ── Apple & Revolut Fusion Style ── */
+    :root {
+      --bg: #050508;
+      --surface-glass: rgba(13, 15, 22, 0.7);
+      --surface-card: #0d0f16;
+      --text-primary: #ffffff;
+      --text-secondary: #8e93a3;
+      --accent-gradient: linear-gradient(135deg, #7c6cf6 0%, #4e9bff 100%);
+      --accent: #7c6cf6;
+      --green: #3ed598;
+      --red: #ff6b8b;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(255, 255, 255, 0.12);
+      --font-apple: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-apple);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(124, 108, 246, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(78, 155, 255, 0.06) 0%, transparent 40%);
+    }
+
+    /* Header Navigation (Apple style) */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5, 5, 8, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 19px;
+      letter-spacing: -0.02em;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand i {
+      font-size: 22px;
+      -webkit-text-fill-color: var(--text-primary);
+      color: var(--text-primary);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .profile-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--border-hover);
+    }
+
+    /* Main Container */
+    main {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+
+    /* Hero Headline Section (Apple Style) */
+    .hero-section {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .hero-section h1 {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #ffffff 0%, #a5a9b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-section p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    /* Metric Grid (Revolut widget style) */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .metric-card {
+      background: var(--surface-glass);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hover);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .metric-card .icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .metric-card .icon-wrap i {
+      font-size: 20px;
+      color: var(--text-secondary);
+    }
+
+    .metric-card.accent-card .icon-wrap i {
+      color: #7c6cf6;
+    }
+
+    .metric-card .label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .metric-card .value {
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+
+    .metric-card .trend {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .trend.positive { color: var(--green); }
+    .trend.negative { color: var(--red); }
+
+    /* Dashboard Layout */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--surface-glass);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    /* Revolut-style Interactive List Row */
+    .list-item {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      border-radius: 18px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: 1px solid transparent;
+      margin-bottom: 8px;
+    }
+
+    .list-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: var(--border);
+    }
+
+    .list-item .item-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: rgba(124, 108, 246, 0.1);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-right: 14px;
+    }
+
+    .list-item .item-details {
+      flex: 1;
+    }
+
+    .list-item .item-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .list-item .item-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .list-item .item-meta {
+      text-align: right;
+    }
+
+    .list-item .item-value {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .list-item .item-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(62, 213, 152, 0.12);
+      color: var(--green);
+      display: inline-block;
+    }
+
+    .list-item .item-badge.pending {
+      background: rgba(255, 182, 72, 0.12);
+      color: #ffb648;
+    }
+
+    /* Clean Buttons (Apple & Revolut hybrid) */
+    .btn-action {
+      background: var(--text-primary);
+      color: var(--bg);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 99px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      opacity: 0.9;
+      transform: scale(0.98);
+    }
+
+    .btn-action.secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-action.secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav-container">
+      <div class="brand">
+        <i class="ti ti-droplet-filled"></i> CarWash Cloud
+      </div>
+      <ul class="nav-links">
+        <li><a href="#">Обзор</a></li>
+        <li><a href="#">Аналитика</a></li>
+        <li><a href="#">Касса</a></li>
+        <li><a href="#">Настройки</a></li>
+      </ul>
+      <div class="profile-btn">
+        <i class="ti ti-user-circle"></i> Салим
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero-section">
+      <h1>Кассовый дашборд</h1>
+      <p>Премиальное управление сетью автомоек в один клик</p>
+    </div>
+
+    <!-- Metrics Widget Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card accent-card">
+        <div class="icon-wrap">
+          <i class="ti ti-currency-rubel"></i>
+        </div>
+        <div class="label">Выручка за сегодня</div>
+        <div class="value">48,500 ₽</div>
+        <div class="trend positive">
+          <i class="ti ti-trending-up"></i> +12% от вчера
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="icon-wrap">
+          <i class="ti ti-car"></i>
+        </div>
+        <div class="label">Обслужено машин</div>
+        <div class="value">34</div>
+        <div class="trend positive">
+          <i class="ti ti-trending-up"></i> +4 новые машины
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="icon-wrap">
+          <i class="ti ti-users"></i>
+        </div>
+        <div class="label">Работает сотрудников</div>
+        <div class="value">6 чел.</div>
+        <div class="trend">
+          <i class="ti ti-check"></i> Смена укомплектована
+        </div>
+      </div>
+    </div>
+
+    <!-- Two columns Layout -->
+    <div class="dashboard-layout">
+      <!-- Left Panel: Recent Operations -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Последние операции</div>
+          <button class="btn-action"><i class="ti ti-plus"></i> Новая мойка</button>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon">
+            <i class="ti ti-car"></i>
+          </div>
+          <div class="item-details">
+            <div class="item-title">Mercedes-Benz G-Class</div>
+            <div class="item-subtitle">Артур · Двухфазная мойка</div>
+          </div>
+          <div class="item-meta">
+            <div class="item-value">2,500 ₽</div>
+            <div class="item-badge">Оплачено</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon">
+            <i class="ti ti-car"></i>
+          </div>
+          <div class="item-details">
+            <div class="item-title">Audi A5 Sportback</div>
+            <div class="item-subtitle">Самир · Комплексная экспресс</div>
+          </div>
+          <div class="item-meta">
+            <div class="item-value">1,800 ₽</div>
+            <div class="item-badge pending">В работе</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="item-icon" style="background: rgba(255, 107, 139, 0.1); color: var(--red);">
+            <i class="ti ti-receipt-off"></i>
+          </div>
+          <div class="item-details">
+            <div class="item-title">Расход: Закупка автошампуня</div>
+            <div class="item-subtitle">Шеф-закупка · Канистра 20л</div>
+          </div>
+          <div class="item-meta">
+            <div class="item-value" style="color: var(--red);">-4,200 ₽</div>
+            <div class="item-badge" style="background: rgba(255,107,139,0.1); color: var(--red);">Списание</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Quick Actions & Presets -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Быстрые действия</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <button class="btn-action secondary" style="justify-content: flex-start; width: 100%;">
+            <i class="ti ti-receipt"></i> Управление расходами
+          </button>
+          <button class="btn-action secondary" style="justify-content: flex-start; width: 100%;">
+            <i class="ti ti-users-group"></i> Смена и графики
+          </button>
+          <button class="btn-action secondary" style="justify-content: flex-start; width: 100%;">
+            <i class="ti ti-file-text"></i> Выгрузить Excel отчет
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
