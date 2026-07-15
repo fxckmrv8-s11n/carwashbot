@@ -36,7 +36,6 @@ from sessions import (
     load_archive, load_users, save_users, add_user, remove_user,
     set_worker_schedule, clear_worker_schedule, get_worker_schedule,
     get_schedule_status, is_working_on,
-    is_session_open, open_session, close_session,
 )
 from calculator import calculate_summary
 from pdf_generator import generate_pdf
@@ -534,17 +533,9 @@ def api_session(branch: str, x_init_data: str = Header(default=""), x_site_token
     return {"session": session, "summary": summary}
 
 
-def require_day_open(branch: str):
-    """Блокирует добавление записей, если смена по филиалу закрыта —
-    чтобы данные не улетали 'во вчерашний день'."""
-    if not is_session_open(branch):
-        raise HTTPException(409, f"Смена по филиалу «{branch}» закрыта. Сначала нажмите «Открыть смену».")
-
-
 @app.post("/api/car")
 def api_add_car(body: CarIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
-    require_day_open(body.branch)
     session = get_session(body.branch)
     body_type = body.body_type
 
@@ -714,7 +705,6 @@ def api_delete_car(branch: str, num: int, x_init_data: str = Header(default=""),
 @app.post("/api/loyalty")
 def api_add_loyalty(body: LoyaltyIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
-    require_day_open(body.branch)
     session = get_session(body.branch)
     session.setdefault("loyalty", []).append({"car_num": body.car_num, "discount": body.discount})
     save_sessions()
@@ -738,7 +728,6 @@ def api_delete_loyalty(branch: str, idx: int, x_init_data: str = Header(default=
 @app.post("/api/expense")
 def api_add_expense(body: ExpenseIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
-    require_day_open(body.branch)
     session = get_session(body.branch)
     session.setdefault("expenses", []).append({"name": body.name, "amount": body.amount})
     save_sessions()
@@ -764,7 +753,6 @@ def api_delete_expense(branch: str, idx: int, x_init_data: str = Header(default=
 @app.post("/api/income")
 def api_add_income(body: IncomeIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
-    require_day_open(body.branch)
     session = get_session(body.branch)
     entry = {"name": body.name, "amount": body.amount}
     if body.payment_split:
@@ -829,13 +817,49 @@ def api_clear_fixed_rate(branch: str, worker: str, x_init_data: str = Header(def
     return {"ok": True, "summary": calculate_summary(session)}
 
 
+class AdminFixedRateIn(BaseModel):
+    branch: str
+    amount: int = 1000
+
+
+@app.post("/api/admin-fixed-rate")
+def api_set_admin_fixed_rate(body: AdminFixedRateIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    """Ставка администратора — та же логика, что и ставка мойщика (см. выше),
+    но для роли "администратор": позволяет закрыть ПУСТОЙ отчёт (за смену не
+    было ни одной машины), при этом администратор всё равно получает фикс
+    (по умолчанию 1000₽), не привязанный к проценту с выручки."""
+    require_branch_admin(body.branch, x_init_data, x_site_token)
+    if body.amount <= 0:
+        raise HTTPException(400, "Сумма ставки должна быть больше нуля")
+    session = get_session(body.branch)
+    if not session.get("admin_name"):
+        raise HTTPException(400, "Сначала укажите администратора смены")
+    session["admin_fixed_rate"] = body.amount
+    save_sessions()
+    log_action(body.branch, "admin_fixed_rate_set", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"{session['admin_name']} · ставка администратора {body.amount}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
+@app.delete("/api/admin-fixed-rate/{branch}")
+def api_clear_admin_fixed_rate(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
+    session = get_session(branch)
+    removed = session.pop("admin_fixed_rate", 0)
+    if not removed:
+        raise HTTPException(404, "Ставка администратора не установлена")
+    save_sessions()
+    log_action(branch, "admin_fixed_rate_clear", current_user_id(x_init_data), current_user_name(x_init_data),
+               f"убрана ставка администратора {removed}₽")
+    return {"ok": True, "summary": calculate_summary(session)}
+
+
 @app.post("/api/product")
 def api_add_product(body: ProductIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     """Товар из каталога (см. config.PRODUCTS) — в отличие от 'Доходов', сумма
     товаров учитывается в базе для расчёта зарплаты администратора
     (мойка + товары), см. calculator.py."""
     require_access(x_init_data, x_site_token)
-    require_day_open(body.branch)
     product = PRODUCTS.get(body.key)
     if not product:
         raise HTTPException(404, "Товар не найден в каталоге")
@@ -895,7 +919,8 @@ def api_newday(branch: str, body: Optional[NewDayIn] = None,
     require_branch_admin(branch, x_init_data, x_site_token)
     body = body or NewDayIn()
     session = get_session(branch)
-    had_data = session.get("cars") or session.get("products")
+    from sessions import session_has_data
+    had_data = session_has_data(session)
 
     discrepancy = None
     if had_data and body.actual_cash is not None:
@@ -919,60 +944,6 @@ def api_newday(branch: str, body: Optional[NewDayIn] = None,
 
     reset_session(branch)
     return {"ok": True, "discrepancy": discrepancy}
-
-
-@app.post("/api/closeday")
-def api_closeday(branch: str, body: Optional[NewDayIn] = None,
-                  x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    """Закрыть день: архивирует накопленные данные и блокирует добавление
-    записей до /api/openday. В отличие от /api/newday НЕ открывает сразу
-    новый день — этим и чинится баг с 'вчерашней датой по утрам'."""
-    require_branch_admin(branch, x_init_data, x_site_token)
-    body = body or NewDayIn()
-    session = get_session(branch)
-    if not is_session_open(branch):
-        return {"ok": True, "already_closed": True}
-    had_data = session.get("cars") or session.get("products")
-
-    discrepancy = None
-    if had_data and body.actual_cash is not None:
-        summary = calculate_summary(session)
-        expected_cash = summary["cash"]
-        discrepancy = body.actual_cash - expected_cash
-        session["actual_cash"] = body.actual_cash
-        session["cash_discrepancy"] = discrepancy
-
-    close_session(branch)
-
-    actor_id, actor_name = current_user_id(x_init_data), current_user_name(x_init_data)
-    if discrepancy is not None and discrepancy != 0:
-        sign = "недостача" if discrepancy < 0 else "излишек"
-        log_action(branch, "closeday", actor_id, actor_name,
-                   f"Смена закрыта · касса не сошлась: {sign} {abs(discrepancy)}₽ "
-                   f"(в системе {expected_cash}₽, по факту {body.actual_cash}₽)")
-    else:
-        log_action(branch, "closeday", actor_id, actor_name, "Смена закрыта")
-
-    return {"ok": True, "discrepancy": discrepancy}
-
-
-@app.post("/api/openday")
-def api_openday(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    """Открыть новый день утром: чистая касса, дата = сегодня."""
-    require_branch_admin(branch, x_init_data, x_site_token)
-    if is_session_open(branch):
-        return {"ok": True, "already_open": True}
-    open_session(branch)
-    actor_id, actor_name = current_user_id(x_init_data), current_user_name(x_init_data)
-    log_action(branch, "openday", actor_id, actor_name, "Смена открыта")
-    return {"ok": True}
-
-
-@app.get("/api/dayopen")
-def api_dayopen(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    """Открыта ли сейчас смена по филиалу — для UI (показать 'Открыть' или 'Закрыть')."""
-    require_access(x_init_data, x_site_token)
-    return {"open": is_session_open(branch)}
 
 
 @app.get("/api/reports/today")
@@ -1392,7 +1363,8 @@ def api_report_allreport(x_init_data: str = Header(default=""), x_site_token: st
     grand = 0
     for branch in BRANCHES:
         session = get_session(branch)
-        if not session.get("cars") and not session.get("products"):
+        from sessions import session_has_data
+        if not session_has_data(session):
             continue
         s = calculate_summary(session)
         grand += s["grand_total"]
