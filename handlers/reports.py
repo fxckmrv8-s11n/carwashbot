@@ -28,8 +28,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⛔ Общая статистика филиала доступна только администратору.\n"
             "Свою личную статистику и зарплату смотри в Mini App: /app")
         return
+    from sessions import session_has_data
     session = get_session(branch)
-    if not session["cars"] and not session.get("products"):
+    if not session_has_data(session):
         await msg.reply_text("📋 Нет данных за сегодня."); return
     s = calculate_summary(session)
     svc_count = {}

@@ -6,7 +6,6 @@
 (current_branch) — выбирается через /newday. Список сотрудников и админ —
 свойства филиала (sessions.get_branch_*), а не личной сессии.
 """
-from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -15,7 +14,7 @@ from sessions import (
     load_users, save_users, add_user, remove_user,
     get_branch_admin, is_branch_admin, is_branch_worker, get_role, set_branch_admin,
     get_branch_workers, add_branch_worker, remove_branch_worker,
-    overwrite_archive_day, is_session_open, open_session, close_session,
+    overwrite_archive_day, load_archive, patch_archive_fixed_rates, patch_fixed_rates,
 )
 from config import OWNER_ID, BRANCHES
 
@@ -112,6 +111,96 @@ async def fix_100726_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "Проверь через /report или /allreport за 10.07."
     )
 
+
+async def fix_day_rates_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/fix <дата> Имя-Сумма Имя-Сумма ... [admin-Сумма]
+
+    Задним числом проставляет фикс-ставку ("Ставка") одному или нескольким
+    сотрудникам за УЖЕ ЗАКРЫТЫЙ (архивный) или за текущий открытый день —
+    например, если день закрыли без машин, а про ставку забыли.
+
+    Примеры:
+      /fix 14.07.2026 Салим-1000 Саркис-1000 Роман-1000 Артур-1000
+      /fix 14.07.2026 admin-1000              (ставка дежурному админу дня)
+      /fix 14.07.2026 Салим-0                 (убрать ставку Салиму)
+
+    Только владелец или админ филиала.
+    """
+    user_id = update.effective_user.id
+    branch  = get_current_branch(context)
+    if not branch:
+        await update.message.reply_text("⚠️ Сначала выбери филиал: /newday")
+        return
+    if get_role(user_id, branch) not in ("owner", "admin"):
+        await update.message.reply_text("⛔ Только администратор филиала может исправлять прошлые дни.")
+        return
+
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text(
+            "Формат: `/fix ДД.ММ.ГГГГ Имя-Сумма Имя-Сумма ...`\n"
+            "Например:\n`/fix 14.07.2026 Салим-1000 Саркис-1000 Роман-1000 Артур-1000`\n\n"
+            "Ставка администратору: `/fix 14.07.2026 admin-1000`\n"
+            "Убрать ставку: `/fix 14.07.2026 Салим-0`",
+            parse_mode="Markdown")
+        return
+
+    date = args[0]
+    try:
+        from datetime import datetime as _dt
+        _dt.strptime(date, "%d.%m.%Y")
+    except ValueError:
+        await update.message.reply_text("⚠️ Дата должна быть в формате ДД.ММ.ГГГГ, например 14.07.2026")
+        return
+
+    rate_updates = {}
+    admin_amount = None
+    bad_tokens = []
+    for token in args[1:]:
+        if "-" not in token:
+            bad_tokens.append(token)
+            continue
+        name, _, amount_str = token.rpartition("-")
+        if not name or not amount_str.lstrip("-").isdigit():
+            bad_tokens.append(token)
+            continue
+        amount = int(amount_str)
+        if name.lower() in ("admin", "админ", "администратор"):
+            admin_amount = amount
+        else:
+            rate_updates[name] = amount
+
+    if bad_tokens:
+        await update.message.reply_text(
+            "⚠️ Не понял эти части (нужен формат Имя-Сумма): " + ", ".join(bad_tokens))
+        return
+    if not rate_updates and admin_amount is None:
+        await update.message.reply_text("⚠️ Не нашёл ни одной пары Имя-Сумма.")
+        return
+
+    session = get_session(branch)
+    if session.get("date") == date:
+        # Текущий, ещё не закрытый день — правим прямо в открытой смене.
+        patch_fixed_rates(session, rate_updates, admin_amount)
+        save_sessions()
+        applied_to = "текущую открытую смену"
+    else:
+        ok = patch_archive_fixed_rates(branch, date, rate_updates, admin_amount)
+        if not ok:
+            await update.message.reply_text(
+                f"⚠️ За {date} в архиве филиала «{branch}» нет записи — нечего исправлять.\n"
+                f"Если это сегодняшний открытый день — сначала добавь хотя бы одну запись в кассу.")
+            return
+        applied_to = f"архивный день {date}"
+
+    lines = [f"✅ Ставки обновлены за {applied_to} | 📍 {branch}"]
+    for name, amount in rate_updates.items():
+        lines.append(f"  {name}: {'убрана' if amount <= 0 else f'{amount}₽'}")
+    if admin_amount is not None:
+        lines.append(f"  Администратор: {'убрана' if admin_amount <= 0 else f'{admin_amount}₽'}")
+    await update.message.reply_text("\n".join(lines))
+
+
 PENDING: dict[int, str] = {}  # user_id -> заявленное имя (в памяти процесса)
 
 
@@ -123,47 +212,8 @@ def is_allowed(user_id: int) -> bool:
 
 
 def get_current_branch(context: ContextTypes.DEFAULT_TYPE) -> str | None:
-    """Филиал, к которому пользователь привязан на сегодня (выбран через /newday
-    или /openday). Если смена по этому филиалу сейчас закрыта (/closeday),
-    возвращает None — все хендлеры, проверяющие 'выбери филиал', сами
-    попросят открыть день."""
-    branch = context.user_data.get("current_branch")
-    if branch and not is_session_open(branch):
-        return None
-    return branch
-
-
-async def openday_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Утренняя команда: открыть новый рабочий день. Если филиал ещё не
-    выбирался в этом чате — просит выбрать его (как раньше /newday)."""
-    branch = context.user_data.get("current_branch")
-    if not branch:
-        return await select_branch(update, context)
-    if is_session_open(branch):
-        await update.message.reply_text(f"✅ Смена по филиалу «{branch}» уже открыта.")
-        return
-    open_session(branch)
-    today = datetime.now().strftime("%d.%m.%Y")
-    await update.message.reply_text(
-        f"🌅 Смена по филиалу «{branch}» открыта на {today}. Можно добавлять машины."
-    )
-
-
-async def closeday_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Вечерняя команда: закрыть день — данные архивируются, добавлять
-    машины больше нельзя, пока утром не нажмёшь /openday."""
-    branch = context.user_data.get("current_branch")
-    if not branch:
-        await update.message.reply_text("⚠️ Сначала выбери филиал: /newday")
-        return
-    if not is_session_open(branch):
-        await update.message.reply_text(f"Смена по филиалу «{branch}» уже закрыта.")
-        return
-    close_session(branch)
-    await update.message.reply_text(
-        f"🌙 Смена по филиалу «{branch}» закрыта и сохранена в архив.\n"
-        f"Утром — /openday, чтобы открыть новый день."
-    )
+    """Филиал, к которому пользователь привязан на сегодня (выбран через /newday)."""
+    return context.user_data.get("current_branch")
 
 
 def require_branch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str | None:
@@ -346,8 +396,9 @@ async def cb_branch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from handlers.buttons import MAIN_MENU, WORKER_MENU
     menu = MAIN_MENU if role in ("owner", "admin") else WORKER_MENU
 
+    from sessions import session_has_data
     session = get_session(branch)
-    is_new_day = session.get("cars") and _is_stale(session)
+    is_new_day = session_has_data(session) and _is_stale(session)
     if is_new_day:
         save_to_archive(branch, session)
         reset_session(branch)
@@ -362,7 +413,7 @@ async def cb_branch(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.message.reply_text(text, parse_mode="Markdown", reply_markup=menu)
 
-    if not is_new_day and session.get("cars") and role in ("owner", "admin"):
+    if not is_new_day and session_has_data(session) and role in ("owner", "admin"):
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("🔄 Всё равно начать новый день", callback_data=f"forcenewday_{branch}")
         ]])
@@ -381,8 +432,9 @@ async def cb_force_newday(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("⛔ Только админ филиала может начать новый день.", show_alert=True)
         return
     await query.answer()
+    from sessions import session_has_data
     session = get_session(branch)
-    if session.get("cars"):
+    if session_has_data(session):
         save_to_archive(branch, session)
     reset_session(branch)
     context.user_data["current_branch"] = branch
@@ -398,85 +450,3 @@ def _is_stale(session: dict) -> bool:
     к уже открытой кассе, ничего обнулять не нужно."""
     from datetime import datetime
     return session.get("date") != datetime.now().strftime("%d.%m.%Y")
-
-
-async def fix_110726_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """РАЗОВАЯ команда: чинит запись за 11.07.2026 по филиалу «Карла Маркса»
-    по бумажному отчёту + добавляет расходы «Ваня ЗП» и «Артур Аванс»."""
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("⛔ Нет доступа.")
-        return
-
-    branch = "Карла Маркса"
-    date = "11.07.2026"
-
-    day = {
-        "date": date,
-        "branch": branch,
-        "admin_percent": 0.10,
-        "admin_name": "Салим",
-        "products": [],
-        "incomes": [
-            {"name": "Timur i30", "amount": 2000, "payment": "visa"},
-        ],
-        "expenses": [
-            {"name": "Ваня ЗП", "amount": 15250},
-            {"name": "Артур Аванс", "amount": 2000},
-        ],
-        "loyalty": [
-            {"car_num": 13, "discount": 600},
-            {"car_num": 10, "discount": 200},
-        ],
-        "cars": [
-            {"num": 1, "car": "Polo «Петрол»", "employee": "Саркис", "body_type": "sedan",
-             "service_keys": ["ручная"], "service": "Ручная мойка + коврики",
-             "price": 1100, "payment": "безнал"},
-            {"num": 2, "car": "Creta", "employee": "Саркис", "body_type": "crossover",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 2500, "payment": "visa"},
-            {"num": 3, "car": "Lexus", "employee": "Саркис", "body_type": "suv",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 3000, "payment": "visa"},
-            {"num": 4, "car": "Audi «Новое Решение»", "employee": "Саркис", "body_type": "sedan",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 2000, "payment": "безнал"},
-            {"num": 5, "car": "Jeep", "employee": "Саркис", "body_type": "suv",
-             "service_keys": ["ручная"], "service": "Ручная мойка + коврики",
-             "price": 1300, "payment": "нал", "payment_split": {"нал": 200, "visa": 1100}},
-
-            {"num": 7, "car": "Айдын", "employee": "Артур", "body_type": "suv",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 3000, "payment": "нал"},
-            {"num": 8, "car": "GAC «Аэропорт»", "employee": "Артур", "body_type": "bus",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 3500, "payment": "безнал"},
-            {"num": 9, "car": "Porsche Cayenne", "employee": "Артур", "body_type": "suv",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 3000, "payment": "visa"},
-            {"num": 10, "car": "Ford", "employee": "Артур", "body_type": "sedan",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 2000, "payment": "visa"},
-
-            {"num": 12, "car": "Sorento 331 Карен", "employee": "Иззет", "body_type": "sedan",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 2000, "payment": "безнал"},
-            {"num": 13, "car": "Mini Cooper", "employee": "Иззет", "body_type": "sedan",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 2000, "payment": "нал"},
-            {"num": 14, "car": "Mercedes", "employee": "Иззет", "body_type": "sedan",
-             "service_keys": ["комплекс", "пластик", "кожа"],
-             "service": "Комплексная мойка + Обработка пластика + Обработка кожи",
-             "price": 3200, "payment": "нал"},
-            {"num": 15, "car": "Accord", "employee": "Иззет", "body_type": "sedan",
-             "service_keys": ["комплекс"], "service": "Комплексная мойка",
-             "price": 2000, "payment": "visa"},
-        ],
-    }
-
-    overwrite_archive_day(branch, date, day)
-    await update.message.reply_text(
-        "✅ Запись за 11.07.2026 (Карла Маркса) перезаписана по бумажному отчёту.\n"
-        "Зарплаты: Саркис 2950₽, Артур 3450₽, Иззет 2750₽, Салим 3050₽ — сходится.\n"
-        "Добавлены расходы: «Ваня ЗП» 15250₽ и «Артур Аванс» 2000₽.\n"
-        "Остаток по кассе теперь -9450₽ (расходы больше налички) — проверь через /report за 11.07."
-    )

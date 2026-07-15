@@ -226,8 +226,9 @@ async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⛔ Общая сводка кассы доступна только администратору филиала.\n"
             "Свою зарплату смотри в Mini App: /app")
         return
+    from sessions import session_has_data
     session = get_session(branch)
-    if not session["cars"] and not session.get("products"):
+    if not session_has_data(session):
         await msg.reply_text("📋 Нет данных."); return
     s = calculate_summary(session)
     salary_lines = []
