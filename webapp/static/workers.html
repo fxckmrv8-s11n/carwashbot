@@ -292,6 +292,7 @@ if (CW.requireAuth()) {
   let scheduleCache = {};
   let carsCache = [];
   let fixedRatesCache = {};
+  let adminFixedRate = 0;
 
   async function load() {
     errEl.style.display = "none";
@@ -302,7 +303,9 @@ if (CW.requireAuth()) {
       const sessData = await CW.authFetch(`/api/session?branch=${encodeURIComponent(branch)}`);
       carsCache = (sessData.session && sessData.session.cars) || [];
       fixedRatesCache = (sessData.summary && sessData.summary.fixed_rates) || {};
+      adminFixedRate = (sessData.summary && sessData.summary.admin_fixed_rate) || 0;
       renderWorkers();
+      renderAdmins();
       if (role === "владелец") renderAdminSub(data.admin_id);
     } catch (e) { showErr(e.message); }
   }
@@ -413,17 +416,20 @@ if (CW.requireAuth()) {
     list.innerHTML = adminsCache.map(name => {
       const isDuty = name === adminOnDuty;
       const tag = isDuty ? `<span class="tag admin">дежурит сегодня</span>` : "";
+      const rate = isDuty ? adminFixedRate : 0;
+      const rateTag = rate ? `<span class="tag rate">ставка ${rate}₽</span>` : "";
       return `
         <div class="worker-row">
           <div class="worker-av" style="background:var(--purple-tint);color:var(--purple)">${CW.initials(name)}</div>
           <div class="worker-info">
-            <div class="worker-name">${name} ${tag}</div>
+            <div class="worker-name">${name} ${tag} ${rateTag}</div>
             <div class="worker-meta">${isDuty ? "Получает % администратора за сегодняшнюю смену" : "Не дежурит сегодня"}</div>
           </div>
           ${canManage ? `
           <div class="worker-actions">
             <div class="icon-btn" title="Зарплата за период" onclick="CW_openAdminSalary('${name.replace(/'/g, "\\'")}')"><i class="ti ti-report-money"></i></div>
             <div class="icon-btn ${isDuty ? "rate-active" : ""}" title="${isDuty ? "Снять дежурство" : "Назначить дежурным сегодня"}" onclick="CW_toggleDuty('${name.replace(/'/g, "\\'")}', ${isDuty})"><i class="ti ti-shield-check"></i></div>
+            ${isDuty ? `<div class="icon-btn ${rate ? "rate-active" : ""}" title="${rate ? "Изменить/убрать ставку" : "Поставить ставку (если 0 машин за день)"}" onclick="CW_toggleAdminRate(${rate})"><i class="ti ti-cash-banknote"></i></div>` : ""}
             <div class="icon-btn del" title="Удалить администратора" onclick="CW_delAdmin('${name.replace(/'/g, "\\'")}')"><i class="ti ti-trash"></i></div>
           </div>` : ""}
         </div>
@@ -459,6 +465,27 @@ if (CW.requireAuth()) {
   };
 
   // ── Ставка (фикс. зарплата за день, например при 0 машин) ──────────
+  // ── Ставка администратора (фикс. зарплата за день, например при 0 машин) ──
+  window.CW_toggleAdminRate = async (currentRate) => {
+    const input = prompt(
+      currentRate
+        ? `Ставка администратора на сегодня: ${currentRate}₽.\n\nВведи новую сумму, или 0 — чтобы убрать ставку.`
+        : `Ставка администратора на сегодня (например, если 0 машин).\n\nВведи сумму (₽):`,
+      currentRate || "1000"
+    );
+    if (input === null) return;
+    const amount = parseInt(input.replace(/[^\d]/g, ""), 10) || 0;
+    try {
+      if (amount <= 0) {
+        if (!currentRate) return; // нечего убирать
+        await CW.authFetch(`/api/admin-fixed-rate/${encodeURIComponent(branch)}`, { method: "DELETE" });
+      } else {
+        await CW.authFetch("/api/admin-fixed-rate", { method: "POST", body: JSON.stringify({ branch, amount }) });
+      }
+      await load();
+    } catch (e) { showErr(e.message); }
+  };
+
   window.CW_toggleRate = async (name, currentRate) => {
     const input = prompt(
       currentRate
