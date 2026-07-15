@@ -281,17 +281,29 @@ def patch_fixed_rates(day: dict, rate_updates: dict, admin_amount: int | None = 
             day["admin_fixed_rate"] = admin_amount
 
 
-def patch_archive_fixed_rates(branch: str, date: str, rate_updates: dict, admin_amount: int | None = None) -> bool:
-    """Задним числом проставить фикс-ставки в УЖЕ АРХИВИРОВАННЫЙ день
-    (например, если день закрыли, а про ставку забыли). Возвращает False,
-    если такого дня нет в архиве."""
+def patch_archive_fixed_rates(branch: str, date: str, rate_updates: dict, admin_amount: int | None = None,
+                               create_if_missing: bool = False, admin_name: str = "") -> bool:
+    """Задним числом проставить фикс-ставки в архивный день. Если дня ещё
+    нет в архиве (например, за этот день вообще ничего не заводили — ни
+    одной машины) и create_if_missing=True — создаёт ПУСТОЙ день (0 машин,
+    0 касса) и сразу проставляет туда ставки, то есть день перестаёт быть
+    "пустым": в нём остаётся ставка каждого сотрудника. Возвращает False,
+    только если create_if_missing=False и такого дня нет в архиве."""
     result = {"ok": False}
 
     def _update(archive):
-        day = archive.get(branch, {}).get(date)
+        branch_archive = archive.setdefault(branch, {})
+        day = branch_archive.get(date)
         if day is None:
-            result["ok"] = False
-            return archive
+            if not create_if_missing:
+                result["ok"] = False
+                return archive
+            day = {
+                "date": date, "branch": branch,
+                "cars": [], "products": [], "expenses": [], "incomes": [], "loyalty": [],
+                "admin_percent": SALARY_ADMIN, "admin_name": admin_name,
+            }
+            branch_archive[date] = day
         patch_fixed_rates(day, rate_updates, admin_amount)
         result["ok"] = True
         return archive
