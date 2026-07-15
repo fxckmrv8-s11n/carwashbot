@@ -116,8 +116,10 @@ async def fix_day_rates_command(update: Update, context: ContextTypes.DEFAULT_TY
     """/fix <дата> Имя-Сумма Имя-Сумма ... [admin-Сумма]
 
     Задним числом проставляет фикс-ставку ("Ставка") одному или нескольким
-    сотрудникам за УЖЕ ЗАКРЫТЫЙ (архивный) или за текущий открытый день —
-    например, если день закрыли без машин, а про ставку забыли.
+    сотрудникам за день. Если день уже есть в архиве (или это текущая
+    открытая смена) — просто добавляет туда ставки. Если дня ВООЩЕ не было
+    (за него не заводили ни одной машины) — создаёт ПУСТОЙ отчёт за этот
+    день (0 машин, 0 касса) прямо в архиве и сразу проставляет ставки.
 
     Примеры:
       /fix 14.07.2026 Салим-1000 Саркис-1000 Роман-1000 Артур-1000
@@ -185,13 +187,12 @@ async def fix_day_rates_command(update: Update, context: ContextTypes.DEFAULT_TY
         save_sessions()
         applied_to = "текущую открытую смену"
     else:
-        ok = patch_archive_fixed_rates(branch, date, rate_updates, admin_amount)
-        if not ok:
-            await update.message.reply_text(
-                f"⚠️ За {date} в архиве филиала «{branch}» нет записи — нечего исправлять.\n"
-                f"Если это сегодняшний открытый день — сначала добавь хотя бы одну запись в кассу.")
-            return
-        applied_to = f"архивный день {date}"
+        # Если такого дня в архиве ещё нет (например, за него вообще не
+        # заводили ни одной машины) — /fix создаёт ПУСТОЙ отчёт за этот
+        # день и сразу проставляет туда ставки, а не отказывает.
+        existed_before = date in load_archive().get(branch, {})
+        patch_archive_fixed_rates(branch, date, rate_updates, admin_amount, create_if_missing=True)
+        applied_to = f"архивный день {date}" if existed_before else f"НОВЫЙ пустой отчёт за {date} (создан этой командой)"
 
     lines = [f"✅ Ставки обновлены за {applied_to} | 📍 {branch}"]
     for name, amount in rate_updates.items():
