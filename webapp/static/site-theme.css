@@ -1,0 +1,349 @@
+/* ── CarWash Cloud — тема «Glass / Orb» ────────────────────────────────
+   Этап 1 миграции на новый дизайн-концепт (main-page-concept.html):
+   тёмный фон, плавающие цветные орбы, полупрозрачные glass-карточки,
+   анимированная hero-карточка. Переопределяет переменные и общие
+   компоненты, одинаково называющиеся на всех страницах сайта
+   (.panel, .btn, .nav-item и т.д.), подключается один раз в
+   site-common.js и красит весь сайт.
+
+   Старые имена переменных (--surface-*, --accent-tint и т.д.) сохранены
+   для обратной совместимости — их используют уже написанные страницы.
+   Новые токены (--glow-*, --glass-*, --radius-*) добавлены для
+   компонентов из концепта и будут использоваться при пересборке
+   каждой страницы на следующих этапах. См. DESIGN_SYSTEM.md. */
+
+:root{
+  --bg:#08080B;
+  --surface-0:#0F1116;
+  --surface-1:#15171D;
+  --surface-2:#1D1F27;
+  --surface-3:#262832;
+  --text:#F5F6FA;
+  --text-secondary:#9096A3;
+  --text-muted:#5E6270;
+  --border:rgba(255,255,255,0.07);
+  --border-strong:rgba(255,255,255,0.14);
+  --accent:#6A8BFF;
+  --accent-b:#A24BFF;
+  --accent-tint:rgba(106,139,255,0.14);
+  --accent-gradient:linear-gradient(135deg,#6A8BFF 0%,#A24BFF 100%);
+  --green:#34D399;
+  --green-tint:rgba(52,211,153,0.14);
+  --red:#FF6B8B;
+  --red-tint:rgba(255,107,139,0.13);
+  --orange:#FFB648;
+  --orange-tint:rgba(255,182,72,0.14);
+  --purple:#A47CF3;
+  --purple-tint:rgba(164,124,243,0.14);
+
+  /* ── Новые токены дизайн-концепта ── */
+  --glow-a:#3B6BFF;      /* синий орб */
+  --glow-b:#A24BFF;      /* фиолетовый орб */
+  --glow-c:#FF4FA3;      /* розовый орб */
+  --glass:rgba(255,255,255,0.055);
+  --glass-hover:rgba(255,255,255,0.09);
+  --glass-border:rgba(255,255,255,0.09);
+  --text-dim:rgba(245,246,250,0.56);
+  --text-faint:rgba(245,246,250,0.34);
+  --good:#34D399;
+  --radius-xl:30px;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:12px;
+  --blur-glass:20px;
+  --blur-nav:28px;
+}
+
+body{ background:var(--bg); }
+
+/* ── Плавающие орбы фона ──────────────────────────────────────────────
+   Добавь <div class="orb-bg"><div class="orb orb-a"></div>...</div>
+   один раз в конец <body> (или в начало .shell) — фиксированный слой,
+   не мешает скроллу и кликам (pointer-events:none). */
+.orb-bg{ position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none; }
+.orb{ position:fixed; border-radius:50%; filter:blur(90px); opacity:.35; }
+.orb-a{ width:420px; height:420px; top:-160px; left:-120px; background:var(--glow-a); animation:orb-float-1 22s ease-in-out infinite; }
+.orb-b{ width:380px; height:380px; top:120px; right:-160px; background:var(--glow-c); opacity:.22; animation:orb-float-2 26s ease-in-out infinite; }
+.orb-c{ width:320px; height:320px; bottom:-140px; left:20%; background:var(--glow-b); opacity:.2; animation:orb-float-1 30s ease-in-out infinite reverse; }
+@keyframes orb-float-1{ 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(30px,40px); } }
+@keyframes orb-float-2{ 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(-40px,20px); } }
+
+/* ── Glass-карточка (базовый строительный блок новых экранов) ── */
+.glass-card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);
+  backdrop-filter:blur(var(--blur-glass));
+  -webkit-backdrop-filter:blur(var(--blur-glass));
+}
+
+/* ── Hero-карточка (анимированный градиент, для сумм/итогов) ── */
+.hero-glass{
+  position:relative; isolation:isolate; overflow:hidden;
+  border-radius:var(--radius-xl);
+  padding:26px 24px 22px;
+  background:
+    radial-gradient(120% 140% at 8% 0%, #6A8BFF 0%, transparent 55%),
+    radial-gradient(120% 140% at 95% 15%, #C15BFF 0%, transparent 50%),
+    radial-gradient(140% 160% at 60% 120%, #FF5FA8 0%, transparent 55%),
+    linear-gradient(155deg, #2A2F7A 0%, #3A1F6B 55%, #4A1F4F 100%);
+  background-size:180% 180%, 180% 180%, 180% 180%, 100% 100%;
+  animation:hero-shift 16s ease-in-out infinite;
+  box-shadow:0 24px 50px -18px rgba(80,50,220,0.55);
+  color:#fff;
+}
+@keyframes hero-shift{
+  0%,100%{ background-position:0% 0%, 100% 0%, 50% 100%, 0 0; }
+  50%{ background-position:30% 20%, 70% 30%, 40% 80%, 0 0; }
+}
+.hero-glass::before{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(155deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%);
+  mix-blend-mode:overlay;
+}
+.hero-glass::after{
+  content:""; position:absolute; width:220px; height:220px; border-radius:50%;
+  right:-70px; top:-70px;
+  background:radial-gradient(circle, rgba(255,255,255,.22), transparent 65%);
+  filter:blur(2px);
+}
+
+/* ── Pill-статусы ── */
+.pill{ display:inline-block; font-size:10.5px; font-weight:700; padding:2.5px 8px; border-radius:100px; }
+.pill.ok{ background:rgba(52,211,153,.15); color:var(--good); }
+.pill.wip{ background:rgba(255,182,72,.16); color:var(--orange); }
+
+/* ── Быстрые действия (сетка квадратных плиток с градиентной иконкой) ── */
+.action-tile{
+  display:flex; flex-direction:column; align-items:center; gap:9px;
+  padding:16px 4px 13px;
+  background:var(--glass); border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  cursor:pointer;
+  transition:transform .15s cubic-bezier(.3,.7,.4,1), background .15s ease;
+}
+.action-tile:active{ transform:scale(.94); background:var(--glass-hover); }
+.action-tile .sq{ width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff; }
+.action-tile .sq.b1{ background:linear-gradient(140deg,#5C7CFF,#8A5CFF); }
+.action-tile .sq.b2{ background:linear-gradient(140deg,#22C1A0,#2AD48B); }
+.action-tile .sq.b3{ background:linear-gradient(140deg,#FF7A5C,#FF5C9A); }
+.action-tile .sq.b4{ background:linear-gradient(140deg,#FFB648,#FF8A3D); }
+
+/* ── Стеклянный нижний навбар (мобильный, для мини-аппа) ── */
+.glass-navbar{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+  width:calc(100% - 32px); max-width:396px;
+  background:rgba(20,20,26,0.72);
+  border:1px solid rgba(255,255,255,0.09);
+  backdrop-filter:blur(var(--blur-nav)) saturate(160%);
+  -webkit-backdrop-filter:blur(var(--blur-nav)) saturate(160%);
+  border-radius:100px;
+  display:flex; align-items:center; justify-content:space-around;
+  padding:10px 6px; z-index:5;
+  box-shadow:0 16px 40px -14px rgba(0,0,0,.6);
+}
+
+*{ -webkit-font-smoothing:antialiased; scrollbar-width:thin; scrollbar-color:var(--surface-3) transparent; }
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-thumb{ background:var(--surface-3); border-radius:8px; }
+::-webkit-scrollbar-track{ background:transparent; }
+
+body{ letter-spacing:-0.006em; }
+
+/* ── Каркас ── */
+.shell{
+  background:var(--bg);
+  position:relative;
+}
+.sidebar{
+  background:var(--glass);
+  border-right:1px solid var(--glass-border);
+  backdrop-filter:blur(var(--blur-glass));
+  -webkit-backdrop-filter:blur(var(--blur-glass));
+  position:relative; z-index:1;
+}
+.brand-icon{
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent-b) 100%);
+  box-shadow:0 4px 14px rgba(106,139,255,0.35);
+}
+.brand-name{ letter-spacing:-0.02em; }
+
+.branch-select{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  transition:border-color .15s;
+}
+.branch-select:hover{ border-color:var(--border-strong); }
+
+.nav-group-label{ opacity:0.8; }
+.nav-item{
+  border-radius:11px;
+  transition:background .12s, color .12s, transform .08s;
+}
+.nav-item:active{ transform:scale(0.98); }
+.nav-item{ position:relative; }
+.nav-item.active{
+  background:var(--glass-hover);
+  color:var(--text);
+  box-shadow:none;
+}
+.nav-item.active::before{
+  content:"";position:absolute;left:-16px;top:8px;bottom:8px;width:3px;border-radius:3px;
+  background:linear-gradient(180deg,var(--accent),var(--accent-b));
+}
+.nav-item.active i{ color:var(--accent-b); }
+
+.user-row{
+  border-radius:12px;
+  transition:background .12s;
+}
+.user-row:hover{ background:var(--glass-hover); }
+.user-av{
+  background:var(--purple-tint);
+  color:var(--purple);
+  font-weight:700;
+}
+
+/* ── Контент ── */
+.main{ background:transparent; position:relative; z-index:1; }
+.page-title{ letter-spacing:-0.025em; font-weight:800; }
+.page-sub{ color:var(--text-secondary); }
+
+.err-banner{
+  border-radius:12px;
+  border:0.5px solid rgba(242,85,90,0.25);
+}
+
+/* ── Панели / карточки ── */
+.panel{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  box-shadow:0 8px 24px rgba(0,0,0,0.18);
+}
+.panel-head{ padding:18px 20px 12px; }
+.panel-title{ font-weight:700; letter-spacing:-0.01em; }
+
+.stat-card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  box-shadow:0 6px 18px rgba(0,0,0,0.14);
+  transition:transform .15s, box-shadow .15s;
+  position:relative;overflow:hidden;
+}
+.stat-card::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(160deg, rgba(255,255,255,0.03), transparent 55%);
+}
+.stat-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 26px rgba(0,0,0,0.22);
+}
+.stat-card .sc-value{ font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+
+/* ── Кнопки ── */
+.btn{
+  border-radius:12px;
+  font-weight:600;
+  letter-spacing:-0.005em;
+  transition:transform .08s, opacity .12s, background .12s;
+}
+.btn:active{ transform:scale(0.97); }
+.btn.primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent-b));
+  box-shadow:0 4px 14px rgba(106,139,255,0.3);
+}
+.btn.primary:hover{ opacity:0.94; }
+.btn.secondary{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+}
+.btn.secondary:hover{ background:var(--glass-hover); }
+
+.icon-btn{
+  border-radius:10px;
+  transition:background .12s, color .12s;
+}
+.icon-btn:hover{ background:var(--glass-hover); color:var(--text); }
+.icon-btn.del:hover, .icon-btn.danger:hover{ background:var(--red-tint); color:var(--red); }
+
+/* ── Строки / таблицы ── */
+.worker-row, .entry, .list-row{
+  transition:background .12s;
+}
+.worker-row:hover, .list-row:hover{ background:var(--glass-hover); }
+
+.tag{ border-radius:7px; font-weight:700; }
+
+/* ── Модалки ── */
+.modal, .modal-bg .modal{
+  background:rgba(20,20,26,0.86);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-xl);
+  backdrop-filter:blur(var(--blur-nav)) saturate(160%); -webkit-backdrop-filter:blur(var(--blur-nav)) saturate(160%);
+  box-shadow:0 20px 60px rgba(0,0,0,0.45);
+}
+html[data-theme="light"] .modal, html[data-theme="light"] .modal-bg .modal{ background:rgba(255,255,255,0.9); }
+
+/* ── Инпуты ── */
+input, select, textarea{
+  background:var(--surface-2);
+  border:0.5px solid var(--border-strong);
+  border-radius:10px;
+  color:var(--text);
+  transition:border-color .12s, box-shadow .12s;
+}
+input:focus, select:focus, textarea:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-tint);
+}
+
+/* ── Этап 5: точечные компоненты на страницах сайта ──────────────────────
+   Каждая страница (dashboard/cash/cars/finance/reports/workers/branches/
+   loyalty/history/settings) хранит свою копию общего каркаса в инлайн
+   <style> (устаревшее легаси), но т.к. этот файл подключается через
+   site-common.js ПОСЛЕ инлайн-стилей (appendChild в конец <head>), при
+   равной специфичности правила отсюда побеждают везде одновременно —
+   поэтому достаточно поправить компонент один раз здесь. */
+
+/* .pay-tag — бейдж способа оплаты (Dashboard/Касса/Финансы/История):
+   квадратный тег → пилюля, как .pill из дизайн-концепта */
+.pay-tag{
+  border-radius:100px!important;
+  padding:3px 9px!important;
+  backdrop-filter:none;
+}
+
+/* Таблицы (Dashboard/Финансы/История/Отчёты): hover-строка на glass */
+table.data tr:hover td{ background:var(--glass-hover)!important; }
+table.data th{ border-top:1px solid var(--glass-border)!important; }
+table.data td{ border-top:1px solid var(--glass-border)!important; }
+
+/* .tag (Мойщики/Филиалы — статусы) — пилюля вместо прямоугольника */
+.tag{ border-radius:100px!important; padding:3px 9px!important; }
+
+/* .tabs/.tab — переключатель периода в Отчётах, как .segmented в mini-app */
+.tabs{
+  background:var(--glass)!important;
+  border:1px solid var(--glass-border)!important;
+  border-radius:100px!important;
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+}
+.tab{ border-radius:100px!important; }
+.tab.active{ background:var(--accent-gradient,linear-gradient(135deg,var(--accent),var(--accent-b)))!important; }
+
+/* .branch-card — карточки филиалов (Филиалы/Отчёты) */
+.branch-card{
+  background:var(--glass)!important;
+  border:1px solid var(--glass-border)!important;
+  border-radius:var(--radius-md)!important;
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+}
