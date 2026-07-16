@@ -8,31 +8,34 @@
 <link rel="stylesheet" href="/static/site-theme.css">
 <style>
 :root{
-  --bg:#08090C; --surface-1:#15171D; --surface-2:#1D1F27; --surface-3:#262832;
-  --text:#F4F5F7; --text-secondary:#9096A3; --text-muted:#5E6270;
+  --bg:#08080B; --surface-1:#15171D; --surface-2:#1D1F27; --surface-3:#262832;
+  --text:#F5F6FA; --text-secondary:#9096A3; --text-muted:#5E6270;
   --border:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.14);
-  --accent:#7C6CF6; --accent-b:#4E9BFF; --accent-tint:rgba(124,108,246,0.14);
+  --accent:#6A8BFF; --accent-b:#A24BFF; --accent-tint:rgba(106,139,255,0.14);
   --red:#FF6B8B; --red-tint:rgba(255,107,139,0.13);
+  --glow-a:#3B6BFF; --glow-b:#A24BFF; --glow-c:#FF4FA3;
+  --glass:rgba(255,255,255,0.055); --glass-hover:rgba(255,255,255,0.09); --glass-border:rgba(255,255,255,0.09);
+  --radius-xl:30px; --radius-lg:22px; --blur-glass:20px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Segoe UI,Roboto,sans-serif;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(124,108,246,0.12), transparent 40%),
-    radial-gradient(circle at 90% 20%, rgba(78,155,255,0.08), transparent 45%),
-    var(--bg);
+  background:var(--bg);
   color:var(--text); min-height:100vh;
   display:flex; align-items:center; justify-content:center; -webkit-font-smoothing:antialiased;
+  position:relative; overflow:hidden;
 }
 .card{
-  width:380px; background:var(--surface-1); border:0.5px solid var(--border);
-  border-radius:18px; padding:28px 26px;
+  width:380px; background:var(--glass); border:1px solid var(--glass-border);
+  border-radius:var(--radius-xl); padding:28px 26px; position:relative; z-index:1;
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  box-shadow:0 24px 60px -20px rgba(0,0,0,0.5);
 }
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
 .brand-icon{
   width:34px;height:34px;border-radius:9px;
   background:linear-gradient(135deg,var(--accent) 0%,var(--accent-b) 100%);
-  box-shadow:0 4px 14px rgba(124,108,246,0.35);
+  box-shadow:0 4px 14px rgba(106,139,255,0.35);
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0;
 }
 .brand-name{font-size:16px;font-weight:700;letter-spacing:-0.01em}
@@ -54,7 +57,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .btn-submit{
   width:100%;height:44px;border-radius:10px;border:none;
   background:linear-gradient(135deg,var(--accent),var(--accent-b));color:#fff;
-  box-shadow:0 4px 14px rgba(124,108,246,0.3);
+  box-shadow:0 4px 14px rgba(106,139,255,0.3);
   font-size:14px;font-weight:700;margin-top:20px;cursor:pointer;
 }
 .btn-submit:disabled{opacity:.5;cursor:default}
@@ -66,6 +69,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 </style>
 </head>
 <body>
+<div class="orb-bg"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div></div>
 <div class="card">
   <div class="brand">
     <div class="brand-icon"><i class="ti ti-droplet"></i></div>

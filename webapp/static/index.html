@@ -17,29 +17,47 @@
 <style>
 /* ── ПЕРЕМЕННЫЕ ─────────────────────────────────────────────────────────── */
 :root{
-  /* Единая палитра с сайтом (site-theme.css) — премиальная тёмная тема */
-  --bg:#08090C;
+  /* Единая палитра с сайтом (site-theme.css) — тема «Glass / Orb»
+     (см. DESIGN_SYSTEM.md, Этап 1 миграции на main-page-concept.html) */
+  --bg:#08080B;
   --surface-0:#0F1116;
   --surface-1:#15171D;
   --surface-2:#1D1F27;
   --surface-3:#262832;
-  --text:#F4F5F7;
+  --text:#F5F6FA;
   --text-secondary:#9096A3;
   --text-muted:#5E6270;
   --border:rgba(255,255,255,0.07);
   --border-strong:rgba(255,255,255,0.14);
-  --accent:#7C6CF6;
-  --accent-b:#4E9BFF;
-  --accent-tint:rgba(124,108,246,0.16);
+  --accent:#6A8BFF;
+  --accent-b:#A24BFF;
+  --accent-tint:rgba(106,139,255,0.16);
   --accent-gradient:linear-gradient(135deg,var(--accent) 0%,var(--accent-b) 100%);
-  --green:#3ED598;
-  --green-tint:rgba(62,213,152,0.14);
+  --green:#34D399;
+  --green-tint:rgba(52,211,153,0.14);
   --red:#FF6B8B;
   --red-tint:rgba(255,107,139,0.13);
   --orange:#FFB648;
   --orange-tint:rgba(255,182,72,0.14);
   --purple:#A47CF3;
   --purple-tint:rgba(164,124,243,0.14);
+
+  /* ── Новые токены дизайн-концепта ── */
+  --glow-a:#3B6BFF;
+  --glow-b:#A24BFF;
+  --glow-c:#FF4FA3;
+  --glass:rgba(255,255,255,0.055);
+  --glass-hover:rgba(255,255,255,0.09);
+  --glass-border:rgba(255,255,255,0.09);
+  --text-dim:rgba(245,246,250,0.56);
+  --text-faint:rgba(245,246,250,0.34);
+  --good:#34D399;
+  --radius-xl:30px;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:12px;
+  --blur-glass:20px;
+  --blur-nav:28px;
 }
 html[data-theme="light"]{
   --bg:#F4F5F8;
@@ -52,9 +70,9 @@ html[data-theme="light"]{
   --text-muted:#9096A3;
   --border:rgba(15,17,22,0.08);
   --border-strong:rgba(15,17,22,0.14);
-  --accent:#7C6CF6;
-  --accent-b:#4E9BFF;
-  --accent-tint:rgba(124,108,246,0.12);
+  --accent:#6A5CE0;
+  --accent-b:#8B3FE8;
+  --accent-tint:rgba(106,92,224,0.12);
   --accent-gradient:linear-gradient(135deg,var(--accent) 0%,var(--accent-b) 100%);
   --green:#1FAE73;
   --green-tint:rgba(31,174,115,0.12);
@@ -64,7 +82,110 @@ html[data-theme="light"]{
   --orange-tint:rgba(224,138,30,0.12);
   --purple:#8654E0;
   --purple-tint:rgba(134,84,224,0.12);
+
+  /* ── Glass-токены для светлой темы (мягче, без орбов на весь экран) ── */
+  --glow-a:#3B6BFF;
+  --glow-b:#A24BFF;
+  --glow-c:#FF4FA3;
+  --glass:rgba(18,19,26,0.035);
+  --glass-hover:rgba(18,19,26,0.06);
+  --glass-border:rgba(18,19,26,0.08);
+  --text-dim:rgba(18,19,26,0.56);
+  --text-faint:rgba(18,19,26,0.34);
+  --good:#1FAE73;
+  --radius-xl:30px;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:12px;
+  --blur-glass:20px;
+  --blur-nav:28px;
 }
+
+/* ── КОМПОНЕНТЫ ДИЗАЙН-КОНЦЕПТА (Этап 1) ──────────────────────────────────
+   Зеркалит .orb-bg/.glass-card/.hero-glass/.pill/.action-tile/.glass-navbar
+   из site-theme.css — mini-app не подключает site-theme.css отдельным
+   файлом, поэтому та же разметка компонентов продублирована здесь, чтобы
+   экраны (Этап 2+) могли использовать одинаковые классы на сайте и в
+   приложении. Источник правды по значениям — DESIGN_SYSTEM.md. */
+.orb-bg{ position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none; }
+.orb{ position:fixed; border-radius:50%; filter:blur(90px); opacity:.35; }
+.orb-a{ width:280px; height:280px; top:-120px; left:-100px; background:var(--glow-a); animation:orb-float-1 22s ease-in-out infinite; }
+.orb-b{ width:260px; height:260px; top:80px; right:-120px; background:var(--glow-c); opacity:.22; animation:orb-float-2 26s ease-in-out infinite; }
+.orb-c{ width:220px; height:220px; bottom:-100px; left:15%; background:var(--glow-b); opacity:.2; animation:orb-float-1 30s ease-in-out infinite reverse; }
+@keyframes orb-float-1{ 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(20px,26px); } }
+@keyframes orb-float-2{ 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(-26px,14px); } }
+
+.glass-card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);
+  backdrop-filter:blur(var(--blur-glass));
+  -webkit-backdrop-filter:blur(var(--blur-glass));
+}
+
+.hero-glass{
+  position:relative; isolation:isolate; overflow:hidden;
+  border-radius:var(--radius-xl);
+  padding:26px 24px 22px;
+  background:
+    radial-gradient(120% 140% at 8% 0%, #6A8BFF 0%, transparent 55%),
+    radial-gradient(120% 140% at 95% 15%, #C15BFF 0%, transparent 50%),
+    radial-gradient(140% 160% at 60% 120%, #FF5FA8 0%, transparent 55%),
+    linear-gradient(155deg, #2A2F7A 0%, #3A1F6B 55%, #4A1F4F 100%);
+  background-size:180% 180%, 180% 180%, 180% 180%, 100% 100%;
+  animation:hero-shift 16s ease-in-out infinite;
+  box-shadow:0 24px 50px -18px rgba(80,50,220,0.55);
+  color:#fff;
+}
+@keyframes hero-shift{
+  0%,100%{ background-position:0% 0%, 100% 0%, 50% 100%, 0 0; }
+  50%{ background-position:30% 20%, 70% 30%, 40% 80%, 0 0; }
+}
+.hero-glass::before{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(155deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%);
+  mix-blend-mode:overlay;
+}
+.hero-glass::after{
+  content:""; position:absolute; width:220px; height:220px; border-radius:50%;
+  right:-70px; top:-70px;
+  background:radial-gradient(circle, rgba(255,255,255,.22), transparent 65%);
+  filter:blur(2px);
+}
+
+.pill{ display:inline-block; font-size:10.5px; font-weight:700; padding:2.5px 8px; border-radius:100px; }
+.pill.ok{ background:rgba(52,211,153,.15); color:var(--good); }
+.pill.wip{ background:rgba(255,182,72,.16); color:var(--orange); }
+
+.action-tile{
+  display:flex; flex-direction:column; align-items:center; gap:9px;
+  padding:16px 4px 13px;
+  background:var(--glass); border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  cursor:pointer;
+  transition:transform .15s cubic-bezier(.3,.7,.4,1), background .15s ease;
+}
+.action-tile:active{ transform:scale(.94); background:var(--glass-hover); }
+.action-tile .sq{ width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff; }
+.action-tile .sq.b1{ background:linear-gradient(140deg,#5C7CFF,#8A5CFF); }
+.action-tile .sq.b2{ background:linear-gradient(140deg,#22C1A0,#2AD48B); }
+.action-tile .sq.b3{ background:linear-gradient(140deg,#FF7A5C,#FF5C9A); }
+.action-tile .sq.b4{ background:linear-gradient(140deg,#FFB648,#FF8A3D); }
+
+.glass-navbar{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+  width:calc(100% - 32px); max-width:396px;
+  background:rgba(20,20,26,0.72);
+  border:1px solid rgba(255,255,255,0.09);
+  backdrop-filter:blur(var(--blur-nav)) saturate(160%);
+  -webkit-backdrop-filter:blur(var(--blur-nav)) saturate(160%);
+  border-radius:100px;
+  display:flex; align-items:center; justify-content:space-around;
+  padding:10px 6px; z-index:5;
+  box-shadow:0 16px 40px -14px rgba(0,0,0,.6);
+}
+html[data-theme="light"] .glass-navbar{ background:rgba(255,255,255,0.72); box-shadow:0 16px 40px -14px rgba(0,0,0,.18); }
 
 /* ── RESET ──────────────────────────────────────────────────────────────── */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
@@ -80,7 +201,7 @@ body{
 }
 
 /* ── LAYOUT ─────────────────────────────────────────────────────────────── */
-.container{max-width:460px;margin:0 auto;position:relative}
+.container{max-width:460px;margin:0 auto;position:relative;z-index:1}
 .page{padding:0 0 8px}
 .px{padding-left:16px;padding-right:16px}
 
@@ -88,7 +209,7 @@ body{
 .tabbar{
   position:fixed;bottom:0;left:0;right:0;
   display:flex;
-  background:rgba(8,9,12,0.88);
+  background:rgba(8,8,11,0.88);
   backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
   border-top:0.5px solid var(--border);
   padding-bottom:env(safe-area-inset-bottom);
@@ -144,112 +265,7 @@ html[data-theme="light"] .tabbar{background:rgba(244,245,248,0.9)}
 .back-btn i{font-size:15px;color:var(--text-secondary)}
 .back-header-title{font-size:17px;font-weight:700}
 
-/* ── HERO CARD (синяя карточка кассы) ──────────────────────────────────── */
-.hero-card{
-  margin:4px 16px 0;
-  background:linear-gradient(135deg,#1a6fff 0%,#3B82F6 100%);
-  border-radius:22px;
-  padding:20px 20px 16px;
-  position:relative;overflow:hidden;
-}
-.hero-card.green-card{background:linear-gradient(135deg,#22C55E 0%,#16A34A 100%)}
-.hero-card .hc-label{font-size:13px;color:rgba(255,255,255,0.75);font-weight:500}
-.hero-card .hc-amount{
-  font-size:38px;font-weight:700;color:#fff;
-  letter-spacing:-0.03em;margin:4px 0 0;
-  display:flex;align-items:baseline;gap:10px;
-}
-.hero-card .hc-amount .pill{
-  font-size:12px;font-weight:700;
-  background:rgba(255,255,255,0.22);
-  color:#fff;padding:3px 9px;border-radius:20px;
-  letter-spacing:0;
-}
-.hero-card .hc-sub{font-size:12px;color:rgba(255,255,255,0.65);margin-top:4px}
-.wave-chart{margin-top:14px}
-.wave-chart svg{display:block;width:100%;height:44px}
-.spark-labels{display:flex;margin-top:5px}
-.spark-labels span{
-  flex:1;text-align:center;font-size:10px;
-  color:rgba(255,255,255,0.5);font-weight:500;
-}
-.spark-labels span.today{color:#fff;font-weight:700}
-
-/* ── STAT GRID (2×2) ────────────────────────────────────────────────────── */
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 16px 0}
-.stat-box{
-  background:var(--surface-1);border-radius:16px;
-  padding:14px 16px;border:0.5px solid var(--border);
-}
-.stat-box .sb-label{
-  font-size:11px;color:var(--text-muted);
-  display:flex;align-items:center;gap:5px;margin-bottom:5px;font-weight:500;
-}
-.stat-box .sb-label i{font-size:13px}
-.stat-box .sb-value{font-size:20px;font-weight:700}
-
-/* ── SECTION LABEL ──────────────────────────────────────────────────────── */
-.section-label{
-  font-size:13px;font-weight:600;color:var(--text-secondary);
-  padding:14px 16px 6px;
-  display:flex;justify-content:space-between;align-items:center;
-}
-.section-label .see-all{
-  font-size:12px;font-weight:500;color:var(--text-muted);cursor:pointer;
-}
-
-/* ── AVATAR ROW (мойщики) ───────────────────────────────────────────────── */
-.avatar-row{
-  display:flex;gap:14px;
-  padding:4px 16px 4px;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-}
-.avatar-row::-webkit-scrollbar{display:none}
-.av-item{text-align:center;flex-shrink:0;cursor:pointer}
-.av-circle{
-  width:46px;height:46px;border-radius:50%;
-  background:var(--surface-1);
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;font-weight:700;
-  margin:0 auto 5px;border:0.5px solid var(--border);
-  position:relative;
-}
-.av-circle.more{
-  border:1.5px dashed var(--border-strong);
-  background:transparent;
-}
-.av-circle.more i{font-size:18px;color:var(--text-muted)}
-.av-circle .status-dot{
-  position:absolute;bottom:1px;right:1px;
-  width:11px;height:11px;border-radius:50%;
-  background:var(--green);border:2px solid var(--bg);
-}
-.av-circle .status-dot.off{background:var(--text-muted)}
-.av-name{font-size:10px;color:var(--text-secondary);max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* ── QUICK ACTIONS (3 кнопки) ───────────────────────────────────────────── */
-.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 16px 0}
-.quick-btn{
-  background:var(--surface-1);border-radius:18px;
-  padding:16px 8px 14px;text-align:center;
-  cursor:pointer;
-  transition:transform .12s cubic-bezier(0,0,.2,1),opacity .12s;
-  border:0.5px solid var(--border);
-}
-.quick-btn:active{transform:scale(0.94);opacity:.85}
-.quick-btn .qb-icon{
-  width:36px;height:36px;border-radius:11px;
-  background:var(--accent-tint);color:var(--accent);
-  display:flex;align-items:center;justify-content:center;
-  margin:0 auto 8px;font-size:18px;
-}
-.quick-btn .qb-icon.green{background:var(--green-tint);color:var(--green)}
-.quick-btn .qb-icon.purple{background:var(--purple-tint);color:var(--purple)}
-.quick-btn .qb-icon.orange{background:var(--orange-tint);color:var(--orange)}
-.quick-btn span{font-size:11px;color:var(--text-secondary);font-weight:500;line-height:1.3}
-
-/* ── SHIFT BAR ──────────────────────────────────────────────────────────── */
+/* ── SHIFT BAR (используется тж. в Кассе) ── */
 .shift-bar{
   margin:10px 16px 0;
   background:var(--surface-1);border-radius:16px;
@@ -264,15 +280,147 @@ html[data-theme="light"] .tabbar{background:rgba(244,245,248,0.9)}
 .sb-track{height:4px;background:var(--surface-2);border-radius:2px}
 .sb-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease}
 
+/* ── WAVE CHART (используется тж. в Отчётах) ── */
+.wave-chart{margin-top:14px}
+.wave-chart svg{display:block;width:100%;height:44px}
+
+/* ── SECTION LABEL (используется на многих экранах, не только «Главная») ── */
+.section-label{
+  font-size:13px;font-weight:600;color:var(--text-secondary);
+  padding:14px 16px 6px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.section-label .see-all{
+  font-size:12px;font-weight:500;color:var(--text-muted);cursor:pointer;
+}
+
+/* ── HOME SCREEN v2 (Glass/Orb, Этап 2) ────────────────────────────────
+   Новый макет «Главной» по main-page-concept.html. Использует токены и
+   базовые компоненты из блока «КОМПОНЕНТЫ ДИЗАЙН-КОНЦЕПТА» выше
+   (.orb-bg, .glass-card, .hero-glass, .pill, .action-tile). Классы ниже —
+   специфичные для расположения элементов именно на «Главной». */
+.home-wrap{ position:relative; padding:14px 16px calc(96px + env(safe-area-inset-bottom,0px)); }
+
+.home-topbar{ display:flex; align-items:center; justify-content:space-between; padding:2px 2px 16px; }
+.home-who{ display:flex; align-items:center; gap:11px; }
+.home-avatar{
+  width:38px; height:38px; border-radius:50%;
+  background:linear-gradient(135deg,var(--glow-a),var(--glow-b));
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:14px; color:#fff; flex-shrink:0;
+}
+.home-who-text .hi{ font-size:12px; color:var(--text-faint); font-weight:500; }
+.home-who-text .name{ font-size:15px; font-weight:700; margin-top:1px; }
+.home-branch-chip{
+  display:flex; align-items:center; gap:6px;
+  background:var(--glass); border:1px solid var(--glass-border);
+  padding:9px 13px 9px 12px; border-radius:100px;
+  font-size:13px; font-weight:600; color:var(--text);
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+  cursor:pointer; max-width:52%;
+}
+.home-branch-chip span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.home-branch-chip i{ opacity:.55; font-size:12px; flex-shrink:0; }
+
+.home-hero{ padding:26px 22px 20px; }
+.home-hero-top{ display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1; }
+.home-hero-label{ font-size:13px; font-weight:600; color:rgba(255,255,255,.72); }
+.home-hero-badge{
+  font-size:12px; font-weight:700; color:#0A0A0C;
+  background:rgba(255,255,255,.92);
+  padding:5px 10px; border-radius:100px;
+  display:flex; align-items:center; gap:4px;
+}
+.home-hero-badge.negative{ background:rgba(20,20,26,.55); color:#fff; }
+.home-hero-sum{
+  position:relative; z-index:1;
+  font-size:40px; font-weight:700; letter-spacing:-1.2px;
+  margin:10px 0 2px; font-variant-numeric:tabular-nums; color:#fff;
+}
+.home-hero-sum span{ font-size:19px; font-weight:600; opacity:.55; margin-left:2px; }
+.home-hero-sub{ position:relative; z-index:1; font-size:13px; color:rgba(255,255,255,.62); font-weight:500; }
+.home-hero-wave{ position:relative; z-index:1; margin-top:16px; height:36px; }
+.home-hero-wave svg{ width:100%; height:100%; display:block; }
+
+.home-segmented{
+  display:flex; gap:2px; margin-top:14px;
+  background:var(--glass); border:1px solid var(--glass-border);
+  padding:3px; border-radius:100px;
+  backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass));
+}
+.home-seg{ flex:1; text-align:center; padding:9px 0; font-size:13px; font-weight:600; color:var(--text-dim); border-radius:100px; cursor:pointer; transition:color .2s; }
+.home-seg.active{ background:var(--glass-hover); color:var(--text); }
+
+.home-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+.home-stat .ic{
+  width:26px; height:26px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--accent-tint); color:var(--accent); margin-bottom:10px; font-size:13px;
+}
+.home-stat{ padding:14px 12px; }
+.home-stat .val{ font-size:18px; font-weight:700; letter-spacing:-.3px; font-variant-numeric:tabular-nums; }
+.home-stat .lab{ font-size:11px; color:var(--text-faint); margin-top:2px; font-weight:500; }
+
+.home-section{ margin-top:24px; }
+.home-section-head{ display:flex; align-items:baseline; justify-content:space-between; padding:0 2px 12px; }
+.home-section-head h2{ font-size:16px; font-weight:700; margin:0; letter-spacing:-.2px; }
+.home-section-head a{ font-size:12.5px; color:var(--text-dim); font-weight:600; cursor:pointer; }
+
+.home-actions{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.home-actions .lab{ font-size:10.5px; font-weight:600; color:var(--text-dim); text-align:center; line-height:1.25; }
+
+.home-list .row{
+  display:flex; align-items:center; gap:12px;
+  padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.055);
+  cursor:pointer;
+}
+html[data-theme="light"] .home-list .row{ border-bottom-color:rgba(15,17,22,.06); }
+.home-list .row:last-child{ border-bottom:none; }
+.home-row-ic{
+  width:38px; height:38px; border-radius:12px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--glass-hover); color:var(--text-dim); font-size:16px;
+}
+.home-row-mid{ flex:1; min-width:0; }
+.home-row-title{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-row-sub{ font-size:12px; color:var(--text-faint); margin-top:2px; }
+.home-row-right{ text-align:right; flex-shrink:0; }
+.home-row-price{ font-size:14.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+.home-team{ display:flex; gap:14px; overflow-x:auto; padding:2px 2px 4px; scrollbar-width:none; }
+.home-team::-webkit-scrollbar{ display:none; }
+.home-member{ flex-shrink:0; width:64px; text-align:center; cursor:pointer; }
+.home-member .av{
+  width:52px; height:52px; border-radius:50%; margin:0 auto 8px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:15px; position:relative;
+  background:linear-gradient(140deg, rgba(255,255,255,.14), rgba(255,255,255,.03));
+  border:1px solid var(--glass-border);
+}
+html[data-theme="light"] .home-member .av{ background:linear-gradient(140deg, rgba(15,17,22,.08), rgba(15,17,22,.02)); }
+.home-member .dot{
+  position:absolute; bottom:1px; right:1px; width:12px; height:12px; border-radius:50%;
+  background:var(--good); border:2.5px solid var(--bg);
+}
+.home-member .dot.off{ background:var(--text-muted); }
+.home-member .nm{ font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-member .amt{ font-size:10.5px; color:var(--text-faint); margin-top:1px; font-variant-numeric:tabular-nums; }
+.home-member.more .av{ border:1.5px dashed var(--glass-border); background:transparent; color:var(--text-faint); }
+
+@media (max-width:380px){
+  .home-hero-sum{ font-size:34px; }
+  .home-actions .lab{ font-size:10px; }
+}
+
 /* ── OPERATIONS LIST ─────────────────────────────────────────────────────── */
-.op-list{margin:0 16px;background:var(--surface-1);border-radius:16px;overflow:hidden;border:0.5px solid var(--border)}
+.op-list{margin:0 16px;background:var(--glass);border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur-glass));-webkit-backdrop-filter:blur(var(--blur-glass))}
 .op-row{
   display:flex;align-items:center;gap:12px;
   padding:11px 14px;cursor:pointer;
   transition:background .1s;
 }
-.op-row+.op-row{border-top:0.5px solid var(--border)}
-.op-row:active{background:var(--surface-2)}
+.op-row+.op-row{border-top:1px solid var(--glass-border)}
+.op-row:active{background:var(--glass-hover)}
 .op-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
 .op-dot.orange{background:var(--orange)}
 .op-info{flex:1;min-width:0}
@@ -296,7 +444,7 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
 .btn{
   width:100%;height:52px;border-radius:14px;
   background:var(--accent-gradient);color:#fff;
-  box-shadow:0 4px 14px rgba(124,108,246,0.28);
+  box-shadow:0 4px 14px rgba(106,139,255,0.28);
   font-size:16px;font-weight:600;
   display:flex;align-items:center;justify-content:center;gap:6px;
   transition:transform .12s cubic-bezier(0,0,.2,1),opacity .12s;
@@ -351,9 +499,10 @@ textarea{resize:none;min-height:72px}
 
 /* ── CARD ────────────────────────────────────────────────────────────────── */
 .card{
-  background:var(--surface-1);border-radius:16px;
-  border:0.5px solid var(--border);overflow:hidden;
+  background:var(--glass);border-radius:var(--radius-lg);
+  border:1px solid var(--glass-border);overflow:hidden;
   margin:0 16px;
+  backdrop-filter:blur(var(--blur-glass));-webkit-backdrop-filter:blur(var(--blur-glass));
 }
 .card+.card{margin-top:10px}
 .card-pad{padding:16px}
@@ -364,8 +513,8 @@ textarea{resize:none;min-height:72px}
   padding:14px 16px;cursor:pointer;
   transition:background .1s;
 }
-.row+.row{border-top:0.5px solid var(--border)}
-.row:active{background:var(--surface-2)}
+.row+.row{border-top:1px solid var(--glass-border)}
+.row:active{background:var(--glass-hover)}
 .row-name{font-size:15px;font-weight:500;display:flex;align-items:center;gap:10px}
 .row-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
 .row-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end}
@@ -387,16 +536,17 @@ textarea{resize:none;min-height:72px}
 
 /* ── SEGMENTED CONTROL ───────────────────────────────────────────────────── */
 .segmented{
-  display:flex;background:var(--surface-1);border-radius:11px;padding:3px;
-  margin:0 16px 14px;border:0.5px solid var(--border);
+  display:flex;background:var(--glass);border-radius:100px;padding:3px;
+  margin:0 16px 14px;border:1px solid var(--glass-border);
+  backdrop-filter:blur(var(--blur-glass));-webkit-backdrop-filter:blur(var(--blur-glass));
 }
 .seg{
   flex:1;text-align:center;padding:8px 0;
   font-size:13px;font-weight:600;color:var(--text-secondary);
-  border-radius:9px;cursor:pointer;transition:all .15s;
+  border-radius:100px;cursor:pointer;transition:all .15s;
 }
-.seg.active{background:var(--accent);color:#fff}
-html[data-theme="light"] .seg.active{background:var(--accent);color:#fff}
+.seg.active{background:var(--accent-gradient);color:#fff}
+html[data-theme="light"] .seg.active{background:var(--accent-gradient);color:#fff}
 
 /* ── МОЯ СМЕНА: раскрывающийся список машин по дням ──────────────────────── */
 .my-stats-day-cars{margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)}
@@ -526,12 +676,12 @@ html[data-theme="light"] .seg.active{background:var(--accent);color:#fff}
 /* ── REPORT TILES ────────────────────────────────────────────────────────── */
 .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 16px}
 .tile{
-  background:var(--surface-1);border-radius:14px;padding:16px 10px;
-  text-align:center;cursor:pointer;border:0.5px solid var(--border);
-  transition:transform .12s;
+  background:var(--glass);border-radius:var(--radius-md);padding:16px 10px;
+  text-align:center;cursor:pointer;border:1px solid var(--glass-border);
+  transition:transform .12s;backdrop-filter:blur(var(--blur-glass));-webkit-backdrop-filter:blur(var(--blur-glass));
 }
 .tile:active{transform:scale(0.96)}
-.tile.primary{background:var(--accent);border-color:transparent}
+.tile.primary{background:var(--accent-gradient);border-color:transparent}
 .tile.primary i,.tile.primary p{color:#fff!important}
 .tile i{font-size:22px;color:var(--text-secondary)}
 .tile p{font-size:12px;font-weight:500;color:var(--text-secondary);margin-top:6px}
@@ -634,17 +784,19 @@ html[data-theme="light"] .seg.active{background:var(--accent);color:#fff}
 .sheet-backdrop.show{opacity:1;pointer-events:auto}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;max-width:460px;margin:0 auto;
-  background:var(--surface-1);border-radius:22px 22px 0 0;
+  background:rgba(20,20,26,0.86);border-radius:var(--radius-xl) var(--radius-xl) 0 0;
   padding:8px 8px calc(12px + env(safe-area-inset-bottom));
   z-index:91;transform:translateY(100%);
   transition:transform .22s cubic-bezier(.32,.72,0,1);
-  border-top:0.5px solid var(--border);
+  border-top:1px solid var(--glass-border);
+  backdrop-filter:blur(var(--blur-nav)) saturate(160%);-webkit-backdrop-filter:blur(var(--blur-nav)) saturate(160%);
 }
+html[data-theme="light"] .sheet{background:rgba(255,255,255,0.88)}
 .sheet.show{transform:translateY(0)}
 .sheet .handle{width:36px;height:4px;background:var(--border-strong);border-radius:2px;margin:6px auto 10px}
 .sheet-title{font-size:13px;color:var(--text-muted);text-align:center;padding:0 16px 10px}
 .sheet-action{display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:15px;border-radius:12px;cursor:pointer;font-weight:500}
-.sheet-action:active{background:var(--surface-2)}
+.sheet-action:active{background:var(--glass-hover)}
 .sheet-action.destructive{color:var(--red)}
 .sheet-action i{font-size:19px;width:22px;text-align:center}
 
@@ -709,7 +861,7 @@ html[data-theme="light"] .theme-switch .topt.active{box-shadow:0 1px 4px rgba(0,
 
 /* ── HOME STAT (для страницы мойщиков) ──────────────────────────────────── */
 .home-stat-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 16px 0}
-.home-stat-box{background:var(--surface-1);border-radius:16px;padding:14px 16px;border:0.5px solid var(--border)}
+.home-stat-box{background:var(--glass);border-radius:var(--radius-md);padding:14px 16px;border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur-glass));-webkit-backdrop-filter:blur(var(--blur-glass))}
 .home-stat-box span{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;margin-bottom:4px;font-weight:500}
 .home-stat-box b{font-size:20px;font-weight:700}
 
@@ -724,7 +876,7 @@ html[data-theme="light"] .theme-switch .topt.active{box-shadow:0 1px 4px rgba(0,
 
 /* ── REPORTS STAT GRID ───────────────────────────────────────────────────── */
 .rstat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 16px 0}
-.rstat-box{background:var(--surface-1);border-radius:16px;padding:14px 16px;border:0.5px solid var(--border)}
+.rstat-box{background:var(--glass);border-radius:var(--radius-md);padding:14px 16px;border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur-glass));-webkit-backdrop-filter:blur(var(--blur-glass))}
 .rstat-box p:first-child{font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;align-items:center;gap:5px}
 .rstat-box p:last-child{font-size:19px;font-weight:700}
 
@@ -754,6 +906,7 @@ html[data-theme="light"] .theme-switch .topt.active{box-shadow:0 1px 4px rgba(0,
 </style>
 </head>
 <body>
+<div class="orb-bg"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div></div>
 <div class="container">
   <div id="view-home"></div>
   <div id="view-add" class="hidden"></div>
@@ -775,7 +928,7 @@ html[data-theme="light"] .theme-switch .topt.active{box-shadow:0 1px 4px rgba(0,
 /* ─── INIT ──────────────────────────────────────────────────────────────── */
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
-try{ tg.setHeaderColor("#08090C"); tg.setBackgroundColor("#08090C"); }catch(e){}
+try{ tg.setHeaderColor("#08080B"); tg.setBackgroundColor("#08080B"); }catch(e){}
 
 window.addEventListener("error", (e) => {
   const el = document.getElementById("view-home");
@@ -865,7 +1018,7 @@ function applyTheme(t){
   try{ localStorage.setItem("cf_theme",t); }catch(e){}
   try{
     if(t==="light"){ tg.setHeaderColor("#F4F5F8"); tg.setBackgroundColor("#F4F5F8"); }
-    else{ tg.setHeaderColor("#08090C"); tg.setBackgroundColor("#08090C"); }
+    else{ tg.setHeaderColor("#08080B"); tg.setBackgroundColor("#08080B"); }
   }catch(e){}
 }
 function currentTheme(){ return document.documentElement.getAttribute("data-theme")||(tg.colorScheme==="light"?"light":"dark"); }
@@ -1020,14 +1173,14 @@ async function renderHome(){
   await ensureMe();
   if(document.querySelector(".tab.active")?.dataset.tab!=="home") return;
   const el=document.getElementById("view-home");
-  el.innerHTML=`<div class="topbar"><div><div class="topbar-title">Главная</div><div class="topbar-sub" onclick="switchBranch()">${BRANCH}<i class="ti ti-chevron-down"></i></div></div><div class="bell-btn" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div></div>${skeleton(4)}`;
+  el.innerHTML=`<div class="home-wrap"><div class="home-topbar"><div class="home-who"><div class="home-avatar">${initials(ME?.name||"")}</div><div class="home-who-text"><div class="hi">${greetingWord()}</div><div class="name">${(ME?.name||"").split(/\s+/)[0]||"—"}</div></div></div><div class="home-branch-chip" onclick="switchBranch()"><span>${BRANCH}</span><i class="ti ti-chevron-down"></i></div></div>${skeleton(4)}</div>`;
   const [{session,summary},{workers,schedule},week]=await Promise.all([
     api(`/api/session?branch=${encodeURIComponent(BRANCH)}`),
     api(`/api/workers?branch=${encodeURIComponent(BRANCH)}`),
     api(`/api/reports/week?branch=${encodeURIComponent(BRANCH)}`).catch(()=>({grand_total:0,days:[]})),
   ]);
   const totalSalary=Object.values(summary.washer_salaries||{}).reduce((a,b)=>a+b,0);
-  const dayLetters=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  const avgCheck=session.cars.length?Math.round(summary.total/session.cars.length):0;
   const now=new Date(), todayIdx=(now.getDay()+6)%7;
   const byDate={};
   (week.days||[]).forEach(d=>{byDate[d.date]=d.total;});
@@ -1039,107 +1192,91 @@ async function renderHome(){
   }
   const maxVal=Math.max(1,...weekTotals);
   const waveSvg=buildWaveSvg(weekTotals,todayIdx,maxVal,"#fff");
-  const labels=dayLetters.map((d,i)=>`<span class="${i===todayIdx?"today":""}" style="${i>todayIdx?"opacity:0.3":""}">${d}</span>`).join("");
 
   const prevAvg=weekTotals.slice(0,-1).reduce((a,b)=>a+b,0)/Math.max(1,weekTotals.length-1);
   const trendPct=prevAvg>0?Math.round(((summary.total-prevAvg)/prevAvg)*100):null;
-  const trendPill=trendPct===null?"":
-    `<span class="trend-pill ${trendPct<0?"negative":""}" style="font-size:13px;padding:4px 10px">${trendPct>=0?"+":""}${trendPct}%</span>`;
+  const trendBadge=trendPct===null?"":
+    `<div class="home-hero-badge${trendPct<0?" negative":""}"><i class="ti ${trendPct<0?"ti-trending-down":"ti-trending-up"}" style="font-size:12px"></i>${trendPct>=0?"+":""}${trendPct}%</div>`;
 
-  const avatars=workers.slice(0,4).map(w=>{
+  const workingCount=workers.filter(w=>schedule?.[w]?.working!==false).length;
+  const teamHtml=workers.slice(0,6).map(w=>{
     const working=schedule?.[w]?.working!==false;
     const col=avatarColor(w);
-    return `<div class="av-item" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')">
-      <div class="av-circle" style="background:${col}22;color:${col}">
-        ${initials(w)}
-        <span class="status-dot ${working?"":"off"}"></span>
-      </div>
-      <div class="av-name">${w}${working?"":" 🌙"}</div>
+    const salary=(summary.washer_salaries||{})[w]||0;
+    return `<div class="home-member" onclick="uiWorkerQuick('${w.replace(/'/g,"\\'")}')">
+      <div class="av" style="background:linear-gradient(140deg,${col}33,${col}11);color:${col}">${initials(w)}<span class="dot${working?"":" off"}"></span></div>
+      <div class="nm">${w}</div>
+      <div class="amt">${fmt(salary)}</div>
     </div>`;
   }).join("");
-  const moreAvatar=workers.length>4
-    ?`<div class="av-item"><div class="av-circle more" onclick="switchTab('workers')"><i class="ti ti-dots"></i></div><div class="av-name">Ещё</div></div>`
-    :`<div class="av-item"><div class="av-circle more" onclick="uiAddWorker()"><i class="ti ti-plus"></i></div><div class="av-name">Ещё</div></div>`;
+  const moreTeam=workers.length>6?`<div class="home-member more" onclick="switchTab('workers')"><div class="av"><i class="ti ti-dots"></i></div><div class="nm">Ещё</div></div>`:"";
+
+  const recentRows=session.cars.length?session.cars.slice().reverse().slice(0,4).map(c=>{
+    const paid=c.payment!=="Долг"&&c.payment!=="unpaid";
+    return `<div class="row" onclick="switchTab('cash')">
+      <div class="home-row-ic"><i class="ti ti-car"></i></div>
+      <div class="home-row-mid"><div class="home-row-title">${c.num||c.brand||"Машина"}${c.service?" · "+c.service:""}</div><div class="home-row-sub">${c.washer||""}${c.time?" · "+c.time:""}</div></div>
+      <div class="home-row-right"><div class="home-row-price">${fmt(c.total||0)}</div><span class="pill ${paid?"ok":"wip"}">${paid?"Оплачено":"В работе"}</span></div>
+    </div>`;
+  }).join(""):"";
 
   el.innerHTML=`
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">Главная</div>
-        <div class="topbar-sub" onclick="switchBranch()">${BRANCH}<i class="ti ti-chevron-down"></i></div>
+    <div class="home-wrap">
+      <div class="home-topbar">
+        <div class="home-who">
+          <div class="home-avatar">${initials(ME?.name||"")}</div>
+          <div class="home-who-text"><div class="hi">${greetingWord()}</div><div class="name">${(ME?.name||"").split(/\s+/)[0]||"—"}</div></div>
+        </div>
+        <div class="home-branch-chip" onclick="switchBranch()"><span>${BRANCH}</span><i class="ti ti-chevron-down"></i></div>
       </div>
-      <div class="bell-btn" onclick="switchTab('settings')"><i class="ti ti-bell"></i></div>
-    </div>
 
-    <div class="hero-card">
-      <div class="hc-label">Касса сегодня</div>
-      <div class="hc-amount">${fmt(summary.total)}${trendPill}</div>
-      <div class="hc-sub" style="margin-top:6px">${BRANCH} · ${session.date||""}</div>
-      <div class="wave-chart">${waveSvg}</div>
-      <div class="spark-labels">${labels}</div>
-    </div>
+      <div class="hero-glass home-hero">
+        <div class="home-hero-top">
+          <div class="home-hero-label">Выручка сегодня</div>
+          ${trendBadge}
+        </div>
+        <div class="home-hero-sum">${(summary.total||0).toLocaleString("ru-RU")} <span>₽</span></div>
+        <div class="home-hero-sub">${session.cars.length} машин${workers.length?" · "+workingCount+" мойщик"+(workingCount===1?"":workingCount<5?"а":"ов")+" на смене":""}</div>
+        <div class="home-hero-wave">${waveSvg}</div>
+      </div>
 
-    <div class="stat-grid">
-      <div class="stat-box">
-        <div class="sb-label"><i class="ti ti-car"></i>Машин</div>
-        <div class="sb-value">${session.cars.length}</div>
+      <div class="home-stats">
+        <div class="glass-card home-stat"><div class="ic"><i class="ti ti-car"></i></div><div class="val">${session.cars.length}</div><div class="lab">Машин</div></div>
+        <div class="glass-card home-stat"><div class="ic"><i class="ti ti-receipt-2"></i></div><div class="val">${avgCheck.toLocaleString("ru-RU")}</div><div class="lab">Средний чек</div></div>
+        <div class="glass-card home-stat"><div class="ic"><i class="ti ti-credit-card-pay"></i></div><div class="val">${totalSalary.toLocaleString("ru-RU")}</div><div class="lab">Выплаты</div></div>
       </div>
-      <div class="stat-box">
-        <div class="sb-label"><i class="ti ti-credit-card-pay"></i>К выплате</div>
-        <div class="sb-value">${fmt(totalSalary)}</div>
-      </div>
-      <div class="stat-box">
-        <div class="sb-label"><i class="ti ti-users"></i>Мойщиков</div>
-        <div class="sb-value">${workers.length}</div>
-      </div>
-      <div class="stat-box">
-        <div class="sb-label"><i class="ti ti-trending-up" style="color:var(--green)"></i>Доход</div>
-        <div class="sb-value">${fmt(summary.grand_total)}</div>
-      </div>
-    </div>
 
-    <div class="section-label">Мойщики сегодня</div>
-    <div class="avatar-row">${avatars}${moreAvatar}</div>
+      <div class="home-section">
+        <div class="home-section-head"><h2>Действия</h2></div>
+        <div class="home-actions">
+          <div class="action-tile" onclick="switchTab('add')"><div class="sq b1"><i class="ti ti-square-rounded-plus"></i></div><div class="lab">Добавить<br>машину</div></div>
+          <div class="action-tile" onclick="switchTab('cash')"><div class="sq b2"><i class="ti ti-cash"></i></div><div class="lab">Касса</div></div>
+          <div class="action-tile" onclick="switchTab('workers')"><div class="sq b3"><i class="ti ti-users"></i></div><div class="lab">Сотрудники</div></div>
+          <div class="action-tile" onclick="switchTab('reports')"><div class="sq b4"><i class="ti ti-chart-bar"></i></div><div class="lab">Отчёты</div></div>
+        </div>
+      </div>
 
-    <div class="section-label">Быстрые действия</div>
-    <div class="quick-grid">
-      <div class="quick-btn" onclick="switchTab('add')">
-        <div class="qb-icon"><i class="ti ti-square-rounded-plus"></i></div>
-        <span>Новая машина</span>
+      <div class="home-section">
+        <div class="home-section-head"><h2>Сегодня в мойке</h2><a onclick="switchTab('cash')">Все машины</a></div>
+        ${session.cars.length
+          ?`<div class="glass-card home-list">${recentRows}</div>`
+          :emptyState("ti-car","Сегодня ещё не было ни одной машины",{label:"Добавить машину",onclick:"switchTab('add')"})}
       </div>
-      <div class="quick-btn" onclick="switchTab('cash')">
-        <div class="qb-icon"><i class="ti ti-cash"></i></div>
-        <span>Касса</span>
-      </div>
-      <div class="quick-btn" onclick="switchTab('reports')">
-        <div class="qb-icon green"><i class="ti ti-chart-bar"></i></div>
-        <span>Отчёты</span>
-      </div>
-      <div class="quick-btn" onclick="switchTab('workers')">
-        <div class="qb-icon purple"><i class="ti ti-users"></i></div>
-        <span>Мойщики</span>
-      </div>
-    </div>
 
-    <div class="shift-bar" onclick="switchTab('cash')" style="cursor:pointer">
-      <i class="ti ti-clock"></i>
-      <div class="sb-body">
-        <div class="sb-text">До закрытия смены</div>
-        <div class="sb-sub">осталось ${Math.max(0,15-session.cars.length)} машин</div>
-        <div class="sb-track"><div class="sb-fill" style="width:${Math.min(100,Math.round(session.cars.length/15*100))}%"></div></div>
-      </div>
-    </div>
-
-    <div class="section-label">Операции сегодня<span class="see-all" onclick="switchTab('cash')">Смотреть все</span></div>
-    <div class="card" style="padding:4px 0">
-      ${session.cars.length?session.cars.slice().reverse().slice(0,3).map(c=>`
-        <div class="row" onclick="switchTab('cash')" style="cursor:pointer">
-          <div class="qb-icon" style="width:34px;height:34px;border-radius:10px;background:var(--accent-tint);color:var(--accent);display:flex;align-items:center;justify-content:center"><i class="ti ti-car"></i></div>
-          <span style="flex:1;margin-left:10px">${c.num||c.brand||"Машина"}</span>
-          <span style="color:var(--text-secondary);font-size:13px">${fmt(c.total||0)}</span>
-        </div>`).join(""):`<p class="empty">Сегодня ещё нет машин</p>`}
+      ${workers.length?`<div class="home-section">
+        <div class="home-section-head"><h2>На смене</h2></div>
+        <div class="home-team">${teamHtml}${moreTeam}</div>
+      </div>`:""}
     </div>
   `;
   attachPullToRefresh("view-home",renderHome);
+}
+function greetingWord(){
+  const h=new Date().getHours();
+  if(h<5) return "Доброй ночи";
+  if(h<12) return "С добрым утром";
+  if(h<18) return "Добрый день";
+  return "Добрый вечер";
 }
 
 /* ─── КАССА (операции смены — вынесено из «Главной») ─────────────────────── */

@@ -10,7 +10,7 @@
 const CW = (() => {
   const API = ""; // сайт и API на одном хосте
 
-  // Подключаем единую тему сайта (Revolut-style) на любую страницу, где
+  // Подключаем единую тему сайта («Glass / Orb») на любую страницу, где
   // подключён этот скрипт — без необходимости редактировать каждую страницу.
   (function injectTheme() {
     if (document.getElementById("cw-theme-link")) return;
@@ -19,6 +19,17 @@ const CW = (() => {
     link.rel = "stylesheet";
     link.href = "/static/site-theme.css";
     document.head.appendChild(link);
+  })();
+
+  // Добавляем фоновый слой плавающих орбов (см. .orb-bg в site-theme.css)
+  // один раз в начало <body> — без правки разметки каждой страницы.
+  (function injectOrbBg() {
+    if (document.getElementById("cw-orb-bg")) return;
+    const wrap = document.createElement("div");
+    wrap.id = "cw-orb-bg";
+    wrap.className = "orb-bg";
+    wrap.innerHTML = '<div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div>';
+    document.body.insertBefore(wrap, document.body.firstChild);
   })();
 
   function getToken() { return localStorage.getItem("cw_token") || ""; }
