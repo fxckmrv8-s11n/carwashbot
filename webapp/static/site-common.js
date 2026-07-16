@@ -10,16 +10,12 @@
 const CW = (() => {
   const API = ""; // сайт и API на одном хосте
 
-  // Подключаем единую тему сайта («Glass / Orb») на любую страницу, где
-  // подключён этот скрипт — без необходимости редактировать каждую страницу.
-  (function injectTheme() {
-    if (document.getElementById("cw-theme-link")) return;
-    const link = document.createElement("link");
-    link.id = "cw-theme-link";
-    link.rel = "stylesheet";
-    link.href = "/static/site-theme.css";
-    document.head.appendChild(link);
-  })();
+  // Тема сайта («Glass / Orb») подключается статическим <link> в <head>
+  // каждой HTML-страницы (сразу после инлайн-<style>, что гарантирует
+  // правильный порядок каскада) — см. webapp/static/*.html. Раньше тема
+  // подключалась через JS (document.head.appendChild) отсюда, но это
+  // зависело от момента выполнения скрипта и было ненадёжно
+  // (могло не успеть отработать до первой отрисовки/из-за кэша браузера).
 
   // Добавляем фоновый слой плавающих орбов (см. .orb-bg в site-theme.css)
   // один раз в начало <body> — без правки разметки каждой страницы.
