@@ -1454,13 +1454,40 @@ def api_delete_preset(branch: str, name: str, x_init_data: str = Header(default=
 
 # ── Статика (сама Mini App) ─────────────────────────────────────────────
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 NO_CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
     "Pragma": "no-cache",
     "Expires": "0",
 }
+
+
+# Обычный StaticFiles не запрещает кэш, а Telegram WebView (и мобильные
+# браузеры) очень агрессивно кэшируют .html-страницы мини-аппы. Из-за этого
+# после редеплоя на Railway пользователи продолжают видеть старый дизайн
+# dashboard.html/cars.html/... пока не почистят кэш вручную.
+# Регистрируем no-cache route для каждой HTML-страницы ДО mount'а ниже:
+# Starlette проверяет маршруты в порядке регистрации и берёт первое
+# совпадение, поэтому эти явные routes должны идти раньше "/static" mount,
+# иначе mount перехватит запрос первым и до этих routes дело не дойдёт.
+# CSS/JS/шрифты (остальное в /static/*) по-прежнему кэшируются браузером.
+def _register_nocache_html_routes():
+    for fname in os.listdir(STATIC_DIR):
+        if not fname.endswith(".html"):
+            continue
+        full_path = os.path.join(STATIC_DIR, fname)
+
+        def _make_handler(p=full_path):
+            def _handler():
+                return FileResponse(p, headers=NO_CACHE_HEADERS)
+            return _handler
+
+        app.get(f"/static/{fname}")(_make_handler())
+
+
+_register_nocache_html_routes()
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
