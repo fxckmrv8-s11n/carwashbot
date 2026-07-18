@@ -171,7 +171,19 @@ def get_session(branch: str) -> dict:
             s[key] = []
     if "admin_name" not in s:
         s["admin_name"] = ""
+    if "day_open" not in s:
+        # Обратная совместимость: у уже идущих смен (в которых уже есть
+        # данные) не должно внезапно заблокироваться добавление машин —
+        # считаем их уже открытыми. Действительно новые/пустые смены
+        # остаются закрытыми, пока админ явно не нажмёт «Открыть смену».
+        s["day_open"] = session_has_data(s)
     return s
+
+
+def open_day(branch: str):
+    session = get_session(branch)
+    session["day_open"] = True
+    save_sessions()
 
 
 def reset_session(branch: str):
@@ -190,6 +202,7 @@ def _empty_session(branch: str) -> dict:
         "loyalty":       [],
         "admin_percent": SALARY_ADMIN,
         "admin_name":    "",
+        "day_open":      False,
     }
 
 

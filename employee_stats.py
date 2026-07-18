@@ -98,9 +98,21 @@ def employee_period_stats(branch: str, name: str,
             shifts_by_role[role] = shifts_by_role.get(role, 0) + 1
             day_total += amount
 
-        day_cars = sum(1 for c in day.get("cars", []) if c.get("employee") == name)
+        my_cars_today = [c for c in day.get("cars", []) if c.get("employee") == name]
+        day_cars = len(my_cars_today)
         cars_count += day_cars
-        days_out.append({"date": date_str, "roles": earned, "total": day_total, "cars": day_cars})
+        car_list = [
+            {
+                "num": c.get("num"),
+                "car": c.get("car") or "",
+                "service": c.get("service") or "",
+                "price": c.get("price", 0),
+                "payment": c.get("payment", ""),
+                "time": c.get("time", ""),
+            }
+            for c in my_cars_today
+        ]
+        days_out.append({"date": date_str, "roles": earned, "total": day_total, "cars": day_cars, "car_list": car_list})
 
     total = sum(by_role.values())
     shifts = len(shift_dates)
