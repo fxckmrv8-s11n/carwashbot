@@ -71,7 +71,7 @@ body{
 .tab{flex:1;text-align:center;padding:8px 10px;border-radius:9px;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer}
 .tab.active{background:var(--accent);color:#fff}
 
-.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
 .stat-card{background:var(--surface-1);border:0.5px solid var(--border);border-radius:14px;padding:16px 18px}
 .stat-card .sc-label{font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px}
 .stat-card .sc-value{font-size:22px;font-weight:700;letter-spacing:-0.01em}
@@ -137,11 +137,15 @@ table.data td.num, table.data th.num{text-align:right}
 
     <!-- СЕГОДНЯ -->
     <div id="viewToday">
+      <div class="hero-glass dash-hero" id="heroRevenue" style="margin-bottom:14px">
+        <div class="hero-label">Выручка (с учётом скидок)</div>
+        <div class="hero-value" id="heroValue">—</div>
+        <div class="hero-sub">&nbsp;</div>
+      </div>
       <div class="stat-row" id="todayStats">
-        <div class="stat-card"><div class="sc-label">Выручка (с учётом скидок)</div><div class="sc-value">—</div></div>
-        <div class="stat-card"><div class="sc-label">Машин</div><div class="sc-value">—</div></div>
-        <div class="stat-card"><div class="sc-label">Расходы</div><div class="sc-value">—</div></div>
-        <div class="stat-card"><div class="sc-label">Остаток в кассе</div><div class="sc-value">—</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-car"></i></span><div class="sc-label">Машин</div></div><div class="sc-value">—</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b3"><i class="ti ti-trending-down"></i></span><div class="sc-label">Расходы</div></div><div class="sc-value">—</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b2"><i class="ti ti-wallet"></i></span><div class="sc-label">Остаток в кассе</div></div><div class="sc-value">—</div></div>
       </div>
       <div class="panel">
         <div class="panel-head"><div class="panel-title">Топ услуг за сегодня</div></div>
@@ -269,11 +273,11 @@ if (CW.requireAuth()) {
     try {
       const data = await CW.authFetch(`/api/reports/today?branch=${encodeURIComponent(branch)}`);
       const s = data.summary || {};
+      document.getElementById("heroValue").textContent = CW.money(s.grand_total);
       document.getElementById("todayStats").innerHTML = `
-        <div class="stat-card"><div class="sc-label">Выручка (с учётом скидок)</div><div class="sc-value">${CW.money(s.grand_total)}</div></div>
-        <div class="stat-card"><div class="sc-label">Машин</div><div class="sc-value">${(data.session && data.session.cars || []).length}</div></div>
-        <div class="stat-card"><div class="sc-label">Расходы</div><div class="sc-value">${CW.money(s.total_expenses)}</div></div>
-        <div class="stat-card"><div class="sc-label">Остаток в кассе</div><div class="sc-value">${CW.money(s.remainder)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-car"></i></span><div class="sc-label">Машин</div></div><div class="sc-value">${(data.session && data.session.cars || []).length}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b3"><i class="ti ti-trending-down"></i></span><div class="sc-label">Расходы</div></div><div class="sc-value">${CW.money(s.total_expenses)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b2"><i class="ti ti-wallet"></i></span><div class="sc-label">Остаток в кассе</div></div><div class="sc-value">${CW.money(s.remainder)}</div></div>
       `;
       const top = data.top_services || [];
       const topList = document.getElementById("topServices");

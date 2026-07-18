@@ -66,7 +66,7 @@ body{
 .btn.danger{background:var(--red);color:#fff}
 .btn:disabled{opacity:.5;cursor:default}
 
-.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
 .stat-card{background:var(--surface-1);border:0.5px solid var(--border);border-radius:14px;padding:16px 18px}
 .stat-card .sc-label{font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px}
 .stat-card .sc-value{font-size:22px;font-weight:700;letter-spacing:-0.01em}
@@ -134,11 +134,16 @@ body{
       </div>
     </div>
 
+    <div class="hero-glass dash-hero" id="heroTotal" style="margin-bottom:14px">
+      <div class="hero-label">Итого (с учётом скидок)</div>
+      <div class="hero-value" id="heroValue">—</div>
+      <div class="hero-sub">&nbsp;</div>
+    </div>
+
     <div class="stat-row" id="payRow">
-      <div class="stat-card"><div class="sc-label">Наличные</div><div class="sc-value">—</div></div>
-      <div class="stat-card"><div class="sc-label">Visa</div><div class="sc-value">—</div></div>
-      <div class="stat-card"><div class="sc-label">Безнал</div><div class="sc-value">—</div></div>
-      <div class="stat-card"><div class="sc-label">Итого (с учётом скидок)</div><div class="sc-value">—</div></div>
+      <div class="stat-card"><div class="sc-top"><span class="sq b2"><i class="ti ti-cash"></i></span><div class="sc-label">Наличные</div></div><div class="sc-value">—</div></div>
+      <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-credit-card"></i></span><div class="sc-label">Visa</div></div><div class="sc-value">—</div></div>
+      <div class="stat-card"><div class="sc-top"><span class="sq b3"><i class="ti ti-building-bank"></i></span><div class="sc-label">Безнал</div></div><div class="sc-value">—</div></div>
     </div>
 
     <div class="grid-2">
@@ -308,11 +313,12 @@ if (CW.requireAuth()) {
       const summary = data.summary || {};
       lastSummary = summary;
 
+      document.getElementById("heroValue").textContent = CW.money(summary.grand_total);
+
       document.getElementById("payRow").innerHTML = `
-        <div class="stat-card"><div class="sc-label">Наличные</div><div class="sc-value">${CW.money(summary.cash)}</div></div>
-        <div class="stat-card"><div class="sc-label">Visa</div><div class="sc-value">${CW.money(summary.visa)}</div></div>
-        <div class="stat-card"><div class="sc-label">Безнал</div><div class="sc-value">${CW.money(summary.beznal)}</div></div>
-        <div class="stat-card"><div class="sc-label">Итого (с учётом скидок)</div><div class="sc-value">${CW.money(summary.grand_total)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b2"><i class="ti ti-cash"></i></span><div class="sc-label">Наличные</div></div><div class="sc-value">${CW.money(summary.cash)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-credit-card"></i></span><div class="sc-label">Visa</div></div><div class="sc-value">${CW.money(summary.visa)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b3"><i class="ti ti-building-bank"></i></span><div class="sc-label">Безнал</div></div><div class="sc-value">${CW.money(summary.beznal)}</div></div>
       `;
 
       document.getElementById("expTotal").textContent = "−" + CW.money(summary.total_expenses);

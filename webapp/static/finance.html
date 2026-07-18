@@ -131,9 +131,9 @@ body{
     </div>
 
     <div class="stat-row" id="statRow">
-      <div class="stat-card accent-red"><div class="sc-label">Расходы за смену</div><div class="sc-value">—</div></div>
-      <div class="stat-card accent-green"><div class="sc-label">Доп. доходы за смену</div><div class="sc-value">—</div></div>
-      <div class="stat-card"><div class="sc-label">Итого по кассе (с учётом скидок)</div><div class="sc-value">—</div></div>
+      <div class="stat-card accent-red"><div class="sc-top"><span class="sq b3"><i class="ti ti-trending-down"></i></span><div class="sc-label">Расходы за смену</div></div><div class="sc-value">—</div></div>
+      <div class="stat-card accent-green"><div class="sc-top"><span class="sq b2"><i class="ti ti-trending-up"></i></span><div class="sc-label">Доп. доходы за смену</div></div><div class="sc-value">—</div></div>
+      <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-cash-banknote"></i></span><div class="sc-label">Итого по кассе (с учётом скидок)</div></div><div class="sc-value">—</div></div>
     </div>
 
     <div class="grid-2">
@@ -248,9 +248,9 @@ if (CW.requireAuth()) {
       const summary = data.summary || {};
 
       document.getElementById("statRow").innerHTML = `
-        <div class="stat-card accent-red"><div class="sc-label">Расходы за смену</div><div class="sc-value">−${CW.money(summary.total_expenses)}</div></div>
-        <div class="stat-card accent-green"><div class="sc-label">Доп. доходы за смену</div><div class="sc-value">+${CW.money(summary.total_incomes)}</div></div>
-        <div class="stat-card"><div class="sc-label">Итого по кассе (с учётом скидок)</div><div class="sc-value">${CW.money(summary.grand_total)}</div></div>
+        <div class="stat-card accent-red"><div class="sc-top"><span class="sq b3"><i class="ti ti-trending-down"></i></span><div class="sc-label">Расходы за смену</div></div><div class="sc-value">−${CW.money(summary.total_expenses)}</div></div>
+        <div class="stat-card accent-green"><div class="sc-top"><span class="sq b2"><i class="ti ti-trending-up"></i></span><div class="sc-label">Доп. доходы за смену</div></div><div class="sc-value">+${CW.money(summary.total_incomes)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-cash-banknote"></i></span><div class="sc-label">Итого по кассе (с учётом скидок)</div></div><div class="sc-value">${CW.money(summary.grand_total)}</div></div>
       `;
 
       document.getElementById("expTotal").textContent = "−" + CW.money(summary.total_expenses);

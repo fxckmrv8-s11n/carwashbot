@@ -1304,7 +1304,10 @@ async function renderCash(){
     <div id="home-swipe-wrap"></div>
 
     <div class="btn-wrap"><button class="btn btn-sm" onclick="switchTab('add')"><i class="ti ti-plus"></i>Новая машина</button></div>
-    <div class="btn-wrap" style="padding-top:0"><button class="btn danger-outline" onclick="startNewDay()">Закрыть смену / новый день</button></div>
+    ${(ME.is_owner||ME.is_branch_admin)?(session.day_open===false
+      ?`<div class="btn-wrap" style="padding-top:0"><button class="btn" onclick="openShift()"><i class="ti ti-lock-open"></i>Открыть смену</button></div>`
+      :`<div class="btn-wrap" style="padding-top:0"><button class="btn danger-outline" onclick="startNewDay()">Закрыть смену / новый день</button></div>`
+    ):""}
   `;
   HOME_CARS=session.cars.slice().reverse();
   HOME_IDX=0;
@@ -1454,6 +1457,12 @@ window.startNewDay=()=>{
     catch(e){return;}
     haptic("medium");toast("Смена закрыта");switchTab("home");
   });
+};
+window.openShift=async()=>{
+  haptic("medium");
+  try{await api(`/api/openday?branch=${encodeURIComponent(BRANCH)}`,{method:"POST"});}
+  catch(e){return;}
+  toast("Смена открыта");renderCash();
 };
 window.downloadPdf=()=>window.open(`/api/reports/pdf?branch=${encodeURIComponent(BRANCH)}`,"_blank");
 window.downloadXlsx=()=>window.open(`/api/reports/xlsx?branch=${encodeURIComponent(BRANCH)}`,"_blank");
@@ -2045,6 +2054,9 @@ async function renderWorkers(){
 
 /* ─── МОЯ СМЕНА (личный кабинет мойщика) ─────────────────────────────────── */
 let MY_STATS_PERIOD = "today";
+let MY_STATS_DAYS = [];
+let MY_DAY_CARS_INDEX = null;
+window.uiOpenMyDayCars=(i)=>{ haptic(); MY_DAY_CARS_INDEX=i; switchTab("my-day-cars"); };
 async function renderMyStats(){
   const el=document.getElementById("view-my-stats");
   if(!BRANCH){el.innerHTML=`<div class="px" style="padding-top:20px"><p class="empty">Сначала выбери филиал</p></div>`;return;}
@@ -2069,16 +2081,22 @@ async function renderMyStats(){
       <div class="wc-sal">${fmt(amount)}</div>
     </div></div>`).join("");
 
-  const dayRowsHtml=(data.days||[]).slice().reverse().map((d,i)=>`
-    <div class="worker-card">
+  MY_STATS_DAYS = data.days||[];
+  const dayRowsHtml=MY_STATS_DAYS.slice().reverse().map((d,revI)=>{
+    const i = MY_STATS_DAYS.length-1-revI;
+    const carsCount = d.cars||0;
+    return `
+    <div class="worker-card"${carsCount?` onclick="uiOpenMyDayCars(${i})"`:""}${carsCount?` style="cursor:pointer"`:""}>
       <div class="wc-top">
         <div class="wc-info"><div>
           <div class="wc-name">${d.date}</div>
-          <div class="wc-sub">${Object.entries(d.roles).map(([r,a])=>`${r}: ${fmt(a)}`).join(" · ")}</div>
+          <div class="wc-sub">${Object.entries(d.roles).map(([r,a])=>`${r}: ${fmt(a)}`).join(" · ")}${carsCount?` · ${carsCount} машин`:""}</div>
         </div></div>
         <div class="wc-sal">${fmt(d.total)}</div>
+        ${carsCount?`<i class="ti ti-chevron-right" style="color:var(--text-faint);margin-left:8px"></i>`:""}
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   el.innerHTML=`
     <div class="topbar">
@@ -2109,6 +2127,36 @@ async function renderMyStats(){
 }
 window.uiMyStatsPeriod=(p)=>{ MY_STATS_PERIOD=p; haptic(); renderMyStats(); };
 window.uiToggleMyStatsDay=(i)=>{ haptic(); document.getElementById(`my-stats-day-${i}`)?.classList.toggle("hidden"); };
+
+/* ─── МОЯ СМЕНА: машины за конкретный день (клик по дате) ────────────────── */
+function renderMyDayCars(){
+  const el=document.getElementById("view-my-day-cars");
+  const d=MY_STATS_DAYS[MY_DAY_CARS_INDEX];
+  if(!d){
+    el.innerHTML=`<div class="back-header"><div class="back-btn" onclick="switchTab('my-stats')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">Машины за день</span></div><div style="padding:24px 16px"><p class="empty">Данные не найдены</p></div>`;
+    return;
+  }
+  const cars=d.car_list||[];
+  const rowsHtml=cars.length?cars.map(c=>`
+    <div class="op-row">
+      <div class="op-info">
+        <p class="op-name">${c.car||"Машина"} · ${c.service||""}</p>
+        <p class="op-meta">${c.time||""}${c.payment?` · ${c.payment}`:""}</p>
+      </div>
+      <span class="op-price">${fmt(c.price)}</span>
+    </div>`).join(""):`<p class="empty" style="padding:20px">В этот день машин нет</p>`;
+
+  el.innerHTML=`
+    <div class="back-header"><div class="back-btn" onclick="switchTab('my-stats')"><i class="ti ti-chevron-left"></i></div><span class="back-header-title">${d.date} · ${d.cars} машин</span></div>
+    <div class="home-stat-row" style="padding:0 16px 14px">
+      <div class="home-stat-box"><span><i class="ti ti-car"></i>Машин</span><b>${d.cars}</b></div>
+      <div class="home-stat-box"><span><i class="ti ti-wallet"></i>Заработано</span><b>${fmt(d.total)}</b></div>
+    </div>
+    <div class="section-label">Список машин</div>
+    <div class="op-list">${rowsHtml}</div>
+    <div style="height:20px"></div>
+  `;
+}
 
 /* ─── ВСЕ СОТРУДНИКИ (сводка по ролям для админа) ────────────────────────── */
 let EMPLOYEES_PERIOD = "today";
@@ -2480,7 +2528,7 @@ function renderMore(){
 
 /* ─── ДОПОЛНИТЕЛЬНЫЕ ЭКРАНЫ (виртуальные роуты новой навигации) ──────────── */
 document.getElementById("view-home").insertAdjacentHTML("afterend",
-  `<div id="view-cash" class="hidden"></div><div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div><div id="view-my-stats" class="hidden"></div><div id="view-employees" class="hidden"></div><div id="view-finance" class="hidden"></div><div id="view-more" class="hidden"></div><div id="view-branches" class="hidden"></div>`
+  `<div id="view-cash" class="hidden"></div><div id="view-day-report" class="hidden"></div><div id="view-all-cars" class="hidden"></div><div id="view-history" class="hidden"></div><div id="view-schedule" class="hidden"></div><div id="view-my-stats" class="hidden"></div><div id="view-my-day-cars" class="hidden"></div><div id="view-employees" class="hidden"></div><div id="view-finance" class="hidden"></div><div id="view-more" class="hidden"></div><div id="view-branches" class="hidden"></div>`
 );
 const _switchTab=switchTab;
 // Виртуальные роуты: экран не в основном наборе switchTab, но должен
@@ -2495,6 +2543,7 @@ const VIRTUAL_ROUTES={
   "history":{view:"view-history",render:()=>renderHistory(),activeTab:"more"},
   "schedule":{view:"view-schedule",render:()=>renderScheduleWeek(),activeTab:"more"},
   "employees":{view:"view-employees",render:()=>renderEmployees(),activeTab:"more"},
+  "my-day-cars":{view:"view-my-day-cars",render:()=>renderMyDayCars(),activeTab:"my-stats"},
   "finance":{view:"view-finance",render:()=>renderFinance(),activeTab:"finance"},
   "branches":{view:"view-branches",render:()=>renderBranchesAdmin(),activeTab:"more"},
   "more":{view:"view-more",render:()=>renderMore(),activeTab:"more"},

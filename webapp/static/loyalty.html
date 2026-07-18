@@ -113,9 +113,9 @@ body{
     </div>
 
     <div class="stat-row" id="statRow">
-      <div class="stat-card accent-purple"><div class="sc-label">Скидок за смену</div><div class="sc-value">—</div></div>
-      <div class="stat-card accent-purple"><div class="sc-label">Сумма скидок</div><div class="sc-value">—</div></div>
-      <div class="stat-card"><div class="sc-label">Машин за смену</div><div class="sc-value">—</div></div>
+      <div class="stat-card accent-purple"><div class="sc-top"><span class="sq b5"><i class="ti ti-discount-2"></i></span><div class="sc-label">Скидок за смену</div></div><div class="sc-value">—</div></div>
+      <div class="stat-card accent-purple"><div class="sc-top"><span class="sq b5"><i class="ti ti-percentage"></i></span><div class="sc-label">Сумма скидок</div></div><div class="sc-value">—</div></div>
+      <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-car"></i></span><div class="sc-label">Машин за смену</div></div><div class="sc-value">—</div></div>
     </div>
 
     <div class="panel">
@@ -173,9 +173,9 @@ if (CW.requireAuth()) {
       const totalLoyalty = summary.total_loyalty || 0;
 
       document.getElementById("statRow").innerHTML = `
-        <div class="stat-card accent-purple"><div class="sc-label">Скидок за смену</div><div class="sc-value">${loyalty.length}</div></div>
-        <div class="stat-card accent-purple"><div class="sc-label">Сумма скидок</div><div class="sc-value">${CW.money(totalLoyalty)}</div></div>
-        <div class="stat-card"><div class="sc-label">Машин за смену</div><div class="sc-value">${cars.length}</div></div>
+        <div class="stat-card accent-purple"><div class="sc-top"><span class="sq b5"><i class="ti ti-discount-2"></i></span><div class="sc-label">Скидок за смену</div></div><div class="sc-value">${loyalty.length}</div></div>
+        <div class="stat-card accent-purple"><div class="sc-top"><span class="sq b5"><i class="ti ti-percentage"></i></span><div class="sc-label">Сумма скидок</div></div><div class="sc-value">${CW.money(totalLoyalty)}</div></div>
+        <div class="stat-card"><div class="sc-top"><span class="sq b1"><i class="ti ti-car"></i></span><div class="sc-label">Машин за смену</div></div><div class="sc-value">${cars.length}</div></div>
       `;
       document.getElementById("loyTotal").textContent = CW.money(totalLoyalty);
 
