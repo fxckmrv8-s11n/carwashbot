@@ -537,6 +537,8 @@ def api_session(branch: str, x_init_data: str = Header(default=""), x_site_token
 def api_add_car(body: CarIn, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
     require_access(x_init_data, x_site_token)
     session = get_session(body.branch)
+    if not session.get("day_open", True):
+        raise HTTPException(403, "Смена ещё не открыта. Попросите администратора нажать «Открыть смену».")
     body_type = body.body_type
 
     breakdown = {}
@@ -913,16 +915,16 @@ class NewDayIn(BaseModel):
     actual_cash: Optional[int] = None  # сколько реально насчитали в кассе (наличные), для сверки
 
 
-@app.post("/api/newday")
-def api_newday(branch: str, body: Optional[NewDayIn] = None,
-               x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
-    require_branch_admin(branch, x_init_data, x_site_token)
-    body = body or NewDayIn()
+def _do_close_day(branch: str, body: "NewDayIn", x_init_data: str, x_site_token: str):
+    """Общая логика закрытия смены: используется и мини-аппой (/api/newday),
+    и сайтом (/api/closeday) — раньше это было продублировано, теперь один
+    источник правды."""
     session = get_session(branch)
     from sessions import session_has_data
     had_data = session_has_data(session)
 
     discrepancy = None
+    expected_cash = None
     if had_data and body.actual_cash is not None:
         summary = calculate_summary(session)
         expected_cash = summary["cash"]
@@ -942,8 +944,40 @@ def api_newday(branch: str, body: Optional[NewDayIn] = None,
     else:
         log_action(branch, "newday", actor_id, actor_name, "Смена закрыта")
 
-    reset_session(branch)
+    reset_session(branch)  # новая пустая смена: day_open=False, нужно явно открыть
     return {"ok": True, "discrepancy": discrepancy}
+
+
+@app.post("/api/newday")
+def api_newday(branch: str, body: Optional[NewDayIn] = None,
+               x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
+    return _do_close_day(branch, body or NewDayIn(), x_init_data, x_site_token)
+
+
+# ── Открытие/закрытие смены (кнопки на странице «Касса за смену») ─────────
+@app.get("/api/dayopen")
+def api_dayopen(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_access(x_init_data, x_site_token)
+    session = get_session(branch)
+    return {"open": session.get("day_open", True), "date": session.get("date")}
+
+
+@app.post("/api/openday")
+def api_openday(branch: str, x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
+    from sessions import open_day
+    open_day(branch)
+    actor_id, actor_name = current_user_id(x_init_data), current_user_name(x_init_data)
+    log_action(branch, "dayopen", actor_id, actor_name, "Смена открыта")
+    return {"ok": True}
+
+
+@app.post("/api/closeday")
+def api_closeday(branch: str, body: Optional[NewDayIn] = None,
+                  x_init_data: str = Header(default=""), x_site_token: str = Header(default="")):
+    require_branch_admin(branch, x_init_data, x_site_token)
+    return _do_close_day(branch, body or NewDayIn(), x_init_data, x_site_token)
 
 
 @app.get("/api/reports/today")
